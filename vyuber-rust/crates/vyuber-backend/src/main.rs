@@ -27,6 +27,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tracing::error!("Failed to start RTMP server: {}", e);
     }
 
+    // 静的ファイルのパスを決定
+    let static_path = std::env::var("STATIC_DIR")
+        .unwrap_or_else(|_| "crates/vyuber-backend/static".to_string());
+
+    tracing::info!("Serving static files from: {}", static_path);
+
     // Axum APIルーター
     let app = Router::new()
         // APIルート
@@ -38,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/chat", post(api::chat::handle_chat))
         .route("/api/live/:stream_key", get(api::live::stream_flv))
         // 静的ファイル配信 (Leptosビルド成果物)
-        .nest_service("/", ServeDir::new("crates/vyuber-backend/static"))
+        .nest_service("/", ServeDir::new(static_path))
         // CORS設定
         .layer(CorsLayer::permissive());
 

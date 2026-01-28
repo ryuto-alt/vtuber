@@ -4,8 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { Mic, MicOff, Video, VideoOff, Square, Circle, Key, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function ControlBar() {
-    const [isRecording, setIsRecording] = useState(false);
+interface ControlBarProps {
+    isStreaming: boolean;
+    onToggleStreaming: (isStreaming: boolean) => void;
+}
+
+export function ControlBar({ isStreaming, onToggleStreaming }: ControlBarProps) {
     const [isMicOn, setIsMicOn] = useState(true);
     const [isVideoOn, setIsVideoOn] = useState(true);
     const [streamKey, setStreamKey] = useState<string | null>(null);
@@ -86,15 +90,15 @@ export function ControlBar() {
                 </div>
 
                 <button
-                    onClick={() => setIsRecording(!isRecording)}
+                    onClick={() => onToggleStreaming(!isStreaming)}
                     className={cn(
                         "h-14 px-8 rounded-full flex items-center gap-3 font-semibold tracking-wide transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95",
-                        isRecording
+                        isStreaming
                             ? "bg-red-500 hover:bg-red-600 text-white shadow-red-500/20"
                             : "bg-zinc-100 hover:bg-white text-zinc-950 shadow-zinc-500/10"
                     )}
                 >
-                    {isRecording ? (
+                    {isStreaming ? (
                         <>
                             <Square className="w-5 h-5 fill-current" />
                             <span>配信停止</span>

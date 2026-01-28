@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run rtmp\" \"next dev\"",
+    "dev:secure": "npx @infisical/cli run --env=dev -- npm run dev",
     "rtmp": "node server.js",
+    "rtmp:secure": "npx @infisical/cli run --env=dev -- node server.js",
     "next": "next dev",
     "build": "next build",
     "start": "concurrently \"npm run rtmp\" \"next start\"",
+    "start:secure": "npx @infisical/cli run --env=dev -- npm start",
     "lint": "eslint"
   },
   "dependencies": {

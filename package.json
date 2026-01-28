@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run rtmp\" \"next dev\"",
-    "dev:secure": "npx @infisical/cli run --env=dev -- npm run dev",
+    "dev": "npx @infisical/cli run -- concurrently \"npm run rtmp\" \"next dev\"",
+    "dev:secure": "npx @infisical/cli run --env=dev -- npm run dev:base",
+    "dev:base": "concurrently \"npm run rtmp\" \"next dev\"",
     "rtmp": "node server.js",
     "rtmp:secure": "npx @infisical/cli run --env=dev -- node server.js",
     "next": "next dev",

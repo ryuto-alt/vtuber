@@ -1,0 +1,14 @@
+# VYuber Backend Tasks
+
+# Run backend with Infisical (default)
+run:
+    infisical run -- cargo run --release
+
+# Build backend
+build:
+    cargo build --release
+
+# Build and run
+dev:
+    cargo build
+    infisical run -- cargo run

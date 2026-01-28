@@ -1,0 +1,13 @@
+[build]
+target = "crates/vyuber-frontend/index.html"
+dist = "crates/vyuber-backend/static"
+
+[watch]
+ignore = ["crates/vyuber-backend"]
+
+[serve]
+port = 8080
+address = "127.0.0.1"
+
+[[proxy]]
+backend = "http://127.0.0.1:3000/api/"

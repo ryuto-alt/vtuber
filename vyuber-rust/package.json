@@ -1,0 +1,14 @@
+{
+  "name": "vyuber-rust",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx @infisical/cli run -- cargo run --release",
+    "dev:watch": "npx @infisical/cli run -- cargo watch -x \"run --release --bin vyuber-backend\" -w crates/vyuber-backend/src",
+    "build": "cargo build --release",
+    "build:dev": "cargo build",
+    "clean": "cargo clean",
+    "test": "cargo test"
+  },
+  "description": "VYuber Rust Backend - VTuber配信アプリケーションのRust実装版"
+}

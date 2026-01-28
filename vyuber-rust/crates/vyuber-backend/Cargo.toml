@@ -1,0 +1,44 @@
+[package]
+name = "vyuber-backend"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "vyuber-backend"
+path = "src/main.rs"
+
+[dependencies]
+# Web Framework
+axum = "0.7"
+tower-http = { version = "0.5", features = ["fs", "cors"] }
+tokio = { workspace = true }
+
+# RTMP (placeholder for MVP - sheave not available on crates.io)
+# Full RTMP implementation will be added in production
+tokio-util = { version = "0.7", features = ["io"] }
+bytes = "1.5"
+
+# HTTP Client (Gemini API)
+reqwest = { version = "0.12", features = ["json"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Utilities
+uuid = { version = "1.11", features = ["v4"] }
+once_cell = "1.20"
+
+# Error Handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Shared Types
+vyuber-shared = { workspace = true }
+
+[dev-dependencies]
+cargo-watch = "8.5"

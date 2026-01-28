@@ -1,100 +1,151 @@
 # VYuber - VTuber配信スタジオ
 
-Next.jsで構築されたVTuber配信スタジオアプリケーションです。OBSからのRTMPストリームを受信・表示できます。
+**Rust + Leptos WASM** で構築されたVTuber配信スタジオアプリケーションです。OBSからのRTMPストリームを受信・表示できます。
 
-## 機能
+## ✨ 特徴
 
-- RTMPサーバーによるストリーム受信
-- OBS連携（ストリームキー生成）
-- リアルタイム映像プレビュー
-- チャットオーバーレイ
-- 録画コントロール
+- 🦀 **完全Rust実装** - バックエンド（Axum）とフロントエンド（Leptos WASM）
+- ⚡ **高速・軽量** - WASMによる高パフォーマンス
+- 🎥 RTMPサーバーによるストリーム受信
+- 🔑 OBS連携（ストリームキー生成）
+- 📹 リアルタイム映像プレビュー
+- 💬 チャットオーバーレイ（AI連携準備完了）
+- 🎤 音声認識UI
 
-## セットアップ
+## 🚀 クイックスタート
 
-### 1. 依存関係のインストール
+### 1. 必要なツール
 
-```bash
-npm install
-```
+- [Rust](https://rustup.rs/) (最新版)
+- [Trunk](https://trunkrs.dev/) - WASM ビルドツール
+  ```bash
+  cargo install trunk
+  ```
+- Node.js (npm scriptsとInfisical用)
 
 ### 2. 開発サーバーの起動
 
-次のコマンドで、RTMPサーバーとNext.jsアプリが同時に起動します:
-
 ```bash
+cd vyuber-rust
 npm run dev
 ```
 
 これにより以下が起動します:
-- RTMPサーバー: ポート1935
-- HLS配信サーバー: ポート8000
-- Next.jsアプリ: http://localhost:3000
+- **Axumサーバー**: http://localhost:3000
+- **RTMPサーバー**: rtmp://localhost:1935
+- **Leptos UI**: http://localhost:3000 で自動配信
 
-ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
+ブラウザで **http://localhost:3000** を開きます。
 
 ### 3. OBSからの配信設定
 
 #### ステップ1: ストリームキーの生成
 
-1. アプリ下部の「ストリームキー生成」ボタンをクリック
-2. 「接続情報を表示」ボタンをクリックして、サーバーURLとストリームキーを確認
+1. UIの「ストリームキー生成」ボタンをクリック
+2. 生成されたストリームキーをコピー
 
 #### ステップ2: OBSの設定
 
 1. OBSを開く
 2. 「設定」→「配信」を選択
 3. サービス: **カスタム**
-4. サーバー: アプリで表示された **サーバーURL** をコピー（例: `rtmp://localhost:1935/live`）
-5. ストリームキー: アプリで表示された **ストリームキー** をコピー
+4. サーバー: `rtmp://localhost:1935/live`
+5. ストリームキー: UIで生成したキーを貼り付け
 6. 「OK」をクリック
 
-**⚠️ 重要: 低遅延配信のための設定**
-
-OBSでプレビューの遅延を最小化するため、以下の設定を行ってください:
+**⚠️ 低遅延配信のための設定**
 
 1. 「設定」→「出力」を開く
 2. **出力モード**: 「詳細」に変更
 3. **配信**タブで以下を設定:
-   - **キーフレーム間隔**: `1` (秒) に設定
-   - これにより遅延が5秒以内に短縮されます
+   - **キーフレーム間隔**: `1` (秒)
+   - これにより遅延が大幅に短縮されます
 
 #### ステップ3: 配信開始
 
 1. OBSで「配信開始」をクリック
-2. アプリのビデオプレビューに映像が表示されます
-3. 「LIVE」インジケーターが表示されれば成功です
+2. UIのビデオプレビューに映像が表示されます
+3. 配信が開始されます 🎉
 
-## 環境変数
+## 🛠️ 開発
 
-`.env.local` ファイルで以下の設定を変更できます:
+### ホットリロード
 
-```env
-RTMP_PORT=1935                  # RTMPサーバーのポート
-HTTP_FLV_PORT=8000             # HLS配信のポート
-NEXT_PUBLIC_HTTP_FLV_PORT=8000 # クライアント側のポート設定
+ファイル変更時に自動再起動:
+
+```bash
+npm run dev:watch
 ```
 
-## 技術スタック
+### ビルド
 
-- **フレームワーク**: Next.js 16 (App Router)
-- **UI**: React 19, Tailwind CSS
-- **ストリーミング**:
-  - Node Media Server (RTMPサーバー)
-  - HLS.js (ブラウザ再生)
-- **アイコン**: Lucide React
+```bash
+# フロントエンドのビルド
+trunk build --release
 
-## Learn More
+# バックエンドのビルド
+cargo build --release
+```
 
-To learn more about Next.js, take a look at the following resources:
+### スクリプト一覧
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `npm run dev` - 開発サーバー起動
+- `npm run dev:watch` - ホットリロード有効
+- `npm run build` - リリースビルド
+- `npm test` - テスト実行
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔧 環境変数
 
-## Deploy on Vercel
+Infisicalで管理されます。必要な変数:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```env
+GEMINI_API_KEY=your_api_key_here  # AI機能用
+RTMP_PORT=1935                    # RTMPポート
+HTTP_FLV_PORT=8888                # HTTP-FLVポート
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🏗️ プロジェクト構造
+
+```
+vyuber-rust/
+├── crates/
+│   ├── vyuber-backend/     # Axumバックエンド
+│   │   ├── src/
+│   │   │   ├── api/        # APIエンドポイント
+│   │   │   ├── rtmp/       # RTMPサーバー
+│   │   │   └── services/   # ビジネスロジック
+│   │   └── static/         # 静的ファイル（ビルド成果物）
+│   ├── vyuber-frontend/    # Leptosフロントエンド（WASM）
+│   │   └── src/
+│   │       ├── lib.rs      # メインUI
+│   │       └── services/   # API通信
+│   └── vyuber-shared/      # 共通型定義
+├── scripts/                # 開発スクリプト
+└── package.json           # npm scripts
+```
+
+## 🦀 技術スタック
+
+### バックエンド
+- **Axum** - 非同期Webフレームワーク
+- **Tokio** - 非同期ランタイム
+- **Tower** - ミドルウェア
+- **Serde** - シリアライゼーション
+
+### フロントエンド
+- **Leptos** - リアクティブUIフレームワーク
+- **WASM** - WebAssembly
+- **Tailwind CSS** - スタイリング
+- **mpegts.js** - 動画プレーヤー
+
+### 開発ツール
+- **Trunk** - WASMビルドツール
+- **Infisical** - 環境変数管理
+
+## 📚 ドキュメント
+
+詳細は `vyuber-rust/README.md` を参照してください。
+
+## 📝 ライセンス
+
+Private

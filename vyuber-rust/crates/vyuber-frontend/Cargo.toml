@@ -1,0 +1,48 @@
+[package]
+name = "vyuber-frontend"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Leptos Framework
+leptos = { version = "0.7", features = ["csr"] }
+leptos_meta = { version = "0.7", default-features = false }
+leptos_router = { version = "0.7", default-features = false }
+
+# WASM Bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Document",
+    "HtmlVideoElement",
+    "SpeechRecognition",
+    "SpeechRecognitionEvent",
+    "SpeechRecognitionResult",
+    "SpeechRecognitionResultList",
+    "SpeechRecognitionAlternative",
+    "MediaSource",
+] }
+
+# HTTP Client
+gloo-net = { version = "0.6", features = ["http"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde-wasm-bindgen = "0.6"
+
+# Utilities
+console_error_panic_hook = "0.1"
+log = "0.4"
+console_log = "1.0"
+rand = "0.8"
+getrandom = { version = "0.2", features = ["js"] }
+
+# Shared Types
+vyuber-shared = { workspace = true }

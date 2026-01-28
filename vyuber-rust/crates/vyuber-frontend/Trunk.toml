@@ -1,0 +1,11 @@
+[build]
+target = "index.html"
+dist = "../vyuber-backend/static"
+public_url = "/"
+
+[watch]
+ignore = ["../vyuber-backend"]
+
+[serve]
+address = "127.0.0.1"
+port = 8080

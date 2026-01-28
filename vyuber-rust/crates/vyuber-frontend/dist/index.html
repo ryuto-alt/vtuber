@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VYUBER MVP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    
+    <script src="mpegts-wrapper.js"></script>
+    
+<script type="module">
+import init, * as bindings from '/vyuber-frontend-50c54eb4121da9a3.js';
+const wasm = await init({ module_or_path: '/vyuber-frontend-50c54eb4121da9a3_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+<link rel="modulepreload" href="/vyuber-frontend-50c54eb4121da9a3.js" crossorigin="anonymous" integrity="sha384-yujXS0eCdV5c3HAqi3U4Zgl3E0MQJ7dz5ls2oZBtimidcWDXRPI96YJKl5+eHoc/"><link rel="preload" href="/vyuber-frontend-50c54eb4121da9a3_bg.wasm" crossorigin="anonymous" integrity="sha384-xskLNoTQCdj5SX/QHWRJ2NNlf0YaH/d504TQbzi4C8lPrkT+XvEq4ZrzghzBb0Oj" as="fetch" type="application/wasm"></head>
+<body class="bg-zinc-950 text-white">
+</body>
+</html>

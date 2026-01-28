@@ -39,6 +39,3 @@ tracing-subscriber = { workspace = true }
 
 # Shared Types
 vyuber-shared = { workspace = true }
-
-[dev-dependencies]
-cargo-watch = "8.5"

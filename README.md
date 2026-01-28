@@ -1,24 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VYuber - VTuber配信スタジオ
 
-## Getting Started
+Next.jsで構築されたVTuber配信スタジオアプリケーションです。OBSからのRTMPストリームを受信・表示できます。
 
-First, run the development server:
+## 機能
+
+- RTMPサーバーによるストリーム受信
+- OBS連携（ストリームキー生成）
+- リアルタイム映像プレビュー
+- チャットオーバーレイ
+- 録画コントロール
+
+## セットアップ
+
+### 1. 依存関係のインストール
+
+```bash
+npm install
+```
+
+### 2. 開発サーバーの起動
+
+次のコマンドで、RTMPサーバーとNext.jsアプリが同時に起動します:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+これにより以下が起動します:
+- RTMPサーバー: ポート1935
+- HLS配信サーバー: ポート8000
+- Next.jsアプリ: http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+ブラウザで [http://localhost:3000](http://localhost:3000) を開きます。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. OBSからの配信設定
+
+#### ステップ1: ストリームキーの生成
+
+1. アプリ下部の「ストリームキー生成」ボタンをクリック
+2. 「接続情報を表示」ボタンをクリックして、サーバーURLとストリームキーを確認
+
+#### ステップ2: OBSの設定
+
+1. OBSを開く
+2. 「設定」→「配信」を選択
+3. サービス: **カスタム**
+4. サーバー: アプリで表示された **サーバーURL** をコピー（例: `rtmp://localhost:1935/live`）
+5. ストリームキー: アプリで表示された **ストリームキー** をコピー
+6. 「OK」をクリック
+
+**⚠️ 重要: 低遅延配信のための設定**
+
+OBSでプレビューの遅延を最小化するため、以下の設定を行ってください:
+
+1. 「設定」→「出力」を開く
+2. **出力モード**: 「詳細」に変更
+3. **配信**タブで以下を設定:
+   - **キーフレーム間隔**: `1` (秒) に設定
+   - これにより遅延が5秒以内に短縮されます
+
+#### ステップ3: 配信開始
+
+1. OBSで「配信開始」をクリック
+2. アプリのビデオプレビューに映像が表示されます
+3. 「LIVE」インジケーターが表示されれば成功です
+
+## 環境変数
+
+`.env.local` ファイルで以下の設定を変更できます:
+
+```env
+RTMP_PORT=1935                  # RTMPサーバーのポート
+HTTP_FLV_PORT=8000             # HLS配信のポート
+NEXT_PUBLIC_HTTP_FLV_PORT=8000 # クライアント側のポート設定
+```
+
+## 技術スタック
+
+- **フレームワーク**: Next.js 16 (App Router)
+- **UI**: React 19, Tailwind CSS
+- **ストリーミング**:
+  - Node Media Server (RTMPサーバー)
+  - HLS.js (ブラウザ再生)
+- **アイコン**: Lucide React
 
 ## Learn More
 

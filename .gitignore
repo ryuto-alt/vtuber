@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+media/
+
+# MCP and Serena config (contains secrets)
+.mcp.json
+.serena/

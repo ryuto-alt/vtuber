@@ -2,11 +2,20 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
 // APIキーの読み込み
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const apiKey = process.env.GEMINI_API_KEY;
+console.log('[Chat API] GEMINI_API_KEY exists:', !!apiKey);
+console.log('[Chat API] API Key length:', apiKey?.length || 0);
+
+if (!apiKey) {
+  console.error('[Chat API] GEMINI_API_KEY is not set!');
+}
+
+const genAI = new GoogleGenerativeAI(apiKey!);
 
 export async function POST(req: Request) {
   try {
     const { message } = await req.json();
+    console.log('[Chat API] Received message:', message);
 
     // ★修正ポイント:
     // 特定のバージョン(2.0など)を指定せず、エイリアス "gemini-flash-latest" を使用します。
@@ -38,15 +47,25 @@ export async function POST(req: Request) {
       必ずValidなJSON配列のみを返してください。
     `;
 
+    console.log('[Chat API] Calling Gemini API...');
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    
+    console.log('[Chat API] Received response:', responseText.substring(0, 100));
+
     // JSONとしてパースして返す
     const jsonResponse = JSON.parse(responseText);
+    console.log('[Chat API] Parsed JSON, comment count:', jsonResponse.length);
 
     return NextResponse.json({ comments: jsonResponse });
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return NextResponse.json({ error: "API Error" }, { status: 500 });
+    console.error("[Chat API] Error details:", error);
+    if (error instanceof Error) {
+      console.error("[Chat API] Error message:", error.message);
+      console.error("[Chat API] Error stack:", error.stack);
+    }
+    return NextResponse.json({
+      error: "API Error",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }

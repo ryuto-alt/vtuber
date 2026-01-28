@@ -1,94 +1,52 @@
-import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
 
-export async function POST() {
-    try {
-        const apiKey = process.env.OPEN_ROUTER_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
-        }
+// APIキーの読み込み
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://vyuber.local', // Optional for OpenRouter
-                'X-Title': 'Vyuber Local'
-            },
-            body: JSON.stringify({
-                model: "openai/gpt-3.5-turbo", // or a cheap efficient model
-                messages: [
-                    {
-                        role: "system",
-                        content: `You are simulating a live stream chat viewer on a Japanese stream.
-            
-            GOAL: Generate ONE single short, NATURAL chat message (max 30 characters).
-            Avoid forced or stereotypical slang (like "Icchi", "Ngo", "Mensu").
-            
-            TONE: Extremely casual, reactive, short, and authentic to modern Japanese live streams (YouTube/Twitch/Niconico).
-            
-            Vary personalities/styles:
-            - Short Reactions (Most common): "草", "！？", "あ", "おお", "え？", "ま？", "それな"
-            - The "Tsukkomi" (Sharp retort): "おいｗ", "何してんねん", "フラグ回収", "は？"
-            - The "Praiser" (Simple): "うま", "888888", "天才か", "かわいい"
-            - The "Casual" (Conversational): "今日何時まで？", "初見", "声いいな", "音ズレかも"
-            - Laughing: "ｗｗｗ", "大草原", "草生える"
+export async function POST(req: Request) {
+  try {
+    const { message } = await req.json();
 
-            Key Rules:
-            - Keep it SHORT. Real viewers often type just 1-5 characters.
-            - No polite Japanese (Desu/Masu) unless acting as a very polite new viewer.
-            - No forced "NanJ" specific jargon unless it fits naturally as general slang (like "kusa").
-            - Use occasional emojis but mostly text/symbols.
+    // ★修正ポイント:
+    // 特定のバージョン(2.0など)を指定せず、エイリアス "gemini-flash-latest" を使用します。
+    // これにより、その時点で利用可能な最新・最適なFlashモデル（おそらくgemini-2.5-flash等）が自動選択されます。
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-flash-latest", 
+      generationConfig: { responseMimeType: "application/json" } 
+    });
 
-            Examples:
-            - "草"
-            - "え、これマジ？"
-            - "ｗｗｗｗｗｗ"
-            - "画面かくついてる"
-            - "初見です"
-            - "あｗ"
-            - "うま！"
-            - "何やってんのｗｗ"
-            
-            Authenticate as a JSON object with these fields:
-            - user: A random Japanese nickname (often highly casual, e.g., "名無し", "tomato", "aa", "猫")
-            - text: The message content in Natural Japanese Internet Slang
-            - color: A tailwind text color class.
-            
-            Output ONLY the JSON object, no markdown code fence.`
-                    }
-                ],
-                temperature: 0.9,
-                max_tokens: 60
-            })
-        });
+    const prompt = `
+      あなたはライブ配信の視聴者です。配信者の発言に対して、以下の5つの異なる人格になりきって、それぞれの反応を生成してください。
+      
+      ## 配信者の発言:
+      "${message}"
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('OpenRouter API Error:', errorText);
-            return NextResponse.json({ error: 'Failed to fetch from AI' }, { status: response.status });
-        }
+      ## 生成する5つの人格:
+      1. 全肯定ファン (青色系): とにかく褒める。語彙力低め。
+      2. 初見さん (紫色系): 状況がわかっていない、または純粋な質問。
+      3. 辛口コメント (オレンジ色系): 少し批判的、または技術的なツッコミ。
+      4. スパム/ネタ勢 (ピンク色系): 絵文字多め、または文脈と関係ない勢いだけのコメント。
+      5. 古参 (緑色系): "おっ" "いつもの" など、慣れている感。
 
-        const data = await response.json();
-        let content = data.choices[0]?.message?.content;
+      ## 出力形式 (JSON Array):
+      [
+        { "user": "名前", "text": "コメント内容", "color": "text-blue-400" },
+        ...
+      ]
+      
+      必ずValidなJSON配列のみを返してください。
+    `;
 
-        // Parse JSON if it came as a string
-        try {
-            if (typeof content === 'string') {
-                // Remove markdown code blocks if present
-                content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-                content = JSON.parse(content);
-            }
-        } catch (e) {
-            console.error('JSON Parse Error:', e);
-            // Fallback
-            content = { user: "System", text: "Error generating message", color: "text-red-500" };
-        }
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    
+    // JSONとしてパースして返す
+    const jsonResponse = JSON.parse(responseText);
 
-        return NextResponse.json(content);
-
-    } catch (error) {
-        console.error('Chat API Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-    }
+    return NextResponse.json({ comments: jsonResponse });
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return NextResponse.json({ error: "API Error" }, { status: 500 });
+  }
 }

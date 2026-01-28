@@ -14,6 +14,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@types/hls.js": "^0.13.3",
     "@types/uuid": "^10.0.0",
     "clsx": "^2.1.1",

@@ -1,0 +1,59 @@
+###############################################
+# VYuber MediaMTX Configuration
+# OBS -> RTMP -> MediaMTX -> WebRTC -> Browser
+###############################################
+
+logLevel: info
+logDestinations: [stdout]
+
+# パフォーマンス: 書き込みキューサイズ増加（60fps対応）
+writeQueueSize: 1024
+
+# 認証なし（ローカル専用）
+authMethod: internal
+authInternalUsers:
+- user: any
+  pass:
+  ips: []
+  permissions:
+  - action: publish
+    path:
+  - action: read
+    path:
+  - action: api
+    path:
+
+###############################################
+# API（ストリーム状態確認用）
+###############################################
+api: yes
+apiAddress: 127.0.0.1:9997
+
+###############################################
+# RTMP（OBSからの入力）
+###############################################
+rtmpAddress: :1935
+rtmpEncryption: "no"
+
+###############################################
+# WebRTC（ブラウザプレビュー出力）
+###############################################
+webrtcAddress: :8889
+webrtcEncryption: no
+webrtcICEServers2: []
+webrtcAdditionalHosts: [127.0.0.1]
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8190
+
+###############################################
+# 不要プロトコル（デフォルトポートのまま）
+###############################################
+rtsp: no
+hls: no
+srt: no
+
+###############################################
+# パス設定
+###############################################
+paths:
+  all:

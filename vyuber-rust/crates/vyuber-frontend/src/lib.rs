@@ -156,6 +156,7 @@ pub fn App() -> impl IntoView {
             show_key_modal=show_key_modal
             set_show_key_modal=set_show_key_modal
             stream_key_info=stream_key_info
+            set_stream_key_info=set_stream_key_info
         />
     }
 }
@@ -262,6 +263,7 @@ fn MainPanel(
 
 #[component]
 fn VideoPreview(
+    #[allow(unused)]
     is_listening: ReadSignal<bool>,
     is_muted: ReadSignal<bool>,
     set_is_muted: WriteSignal<bool>,
@@ -270,6 +272,7 @@ fn VideoPreview(
     volume: ReadSignal<f64>,
     set_volume: WriteSignal<f64>,
 ) -> impl IntoView {
+    // ページ読み込み時にプレイヤーを初期化（常時接続、OBSからのデータが来たら自動再生）
     Effect::new(move |_| {
         spawn_local(async move {
             gloo_timers::future::TimeoutFuture::new(500).await;
@@ -317,25 +320,17 @@ fn VideoPreview(
                 <span class="px-2 py-1 text-[10px] font-mono font-medium bg-black/80 text-slate-300 rounded border border-white/5 backdrop-blur-md">"6000 Kbps"</span>
             </div>
 
-            // No signal placeholder (shown when not listening)
-            {move || {
-                if !is_listening.get() {
-                    view! {
-                        <div class="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-[#050608] z-[5]">
-                            <div class="relative">
-                                <div class="absolute -inset-4 bg-primary/5 rounded-full blur-xl animate-pulse"></div>
-                                <div class="w-24 h-24 rounded-full bg-surface-darker border border-border-dark flex items-center justify-center mb-6 relative z-10">
-                                    <span class="material-symbols-outlined text-5xl text-slate-700">"videocam_off"</span>
-                                </div>
-                            </div>
-                            <p class="text-lg font-medium tracking-wide text-slate-500 uppercase">"信号がありません"</p>
-                            <p class="text-sm text-slate-600 mt-2 font-mono">"ビデオソースを待機中"</p>
-                        </div>
-                    }.into_any()
-                } else {
-                    view! { <div></div> }.into_any()
-                }
-            }}
+            // No signal placeholder (JS hides this when video starts playing)
+            <div id="video-placeholder" class="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-[#050608] z-[5]">
+                <div class="relative">
+                    <div class="absolute -inset-4 bg-primary/5 rounded-full blur-xl animate-pulse"></div>
+                    <div class="w-24 h-24 rounded-full bg-surface-darker border border-border-dark flex items-center justify-center mb-6 relative z-10">
+                        <span class="material-symbols-outlined text-5xl text-slate-700">"videocam_off"</span>
+                    </div>
+                </div>
+                <p class="text-lg font-medium tracking-wide text-slate-500 uppercase">"信号がありません"</p>
+                <p class="text-sm text-slate-600 mt-2 font-mono">"ビデオソースを待機中"</p>
+            </div>
 
             // Bottom controls (hover)
             <div class="absolute bottom-0 left-0 right-0 px-4 pb-3 pt-10 flex items-end justify-between bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-10">
@@ -678,7 +673,58 @@ fn StreamKeyModal(
     show_key_modal: ReadSignal<bool>,
     set_show_key_modal: WriteSignal<bool>,
     stream_key_info: ReadSignal<Option<StreamKeyResponse>>,
+    set_stream_key_info: WriteSignal<Option<StreamKeyResponse>>,
 ) -> impl IntoView {
+    let (server_copied, set_server_copied) = signal(false);
+    let (key_copied, set_key_copied) = signal(false);
+    let (is_generating, set_is_generating) = signal(false);
+
+    // Auto-generate key when modal opens with no key
+    Effect::new(move |_| {
+        if show_key_modal.get() {
+            // Fetch existing key first
+            spawn_local(async move {
+                match services::stream_api::get_stream_key().await {
+                    Ok(resp) => {
+                        if resp.stream_key.is_some() {
+                            set_stream_key_info.set(Some(resp));
+                        }
+                    }
+                    Err(e) => log::warn!("Could not fetch existing key: {}", e),
+                }
+            });
+        }
+        // Reset copied states when modal closes
+        if !show_key_modal.get() {
+            set_server_copied.set(false);
+            set_key_copied.set(false);
+        }
+    });
+
+    let on_generate = move |_: web_sys::MouseEvent| {
+        set_is_generating.set(true);
+        spawn_local(async move {
+            match services::stream_api::generate_stream_key().await {
+                Ok(resp) => {
+                    set_stream_key_info.set(Some(resp));
+                    set_key_copied.set(false);
+                    set_server_copied.set(false);
+                }
+                Err(e) => log::error!("Failed to generate stream key: {}", e),
+            }
+            set_is_generating.set(false);
+        });
+    };
+
+    let copy_with_feedback = move |text: String, set_copied: WriteSignal<bool>| {
+        copy_to_clipboard(&text);
+        set_copied.set(true);
+        spawn_local(async move {
+            gloo_timers::future::TimeoutFuture::new(2000).await;
+            set_copied.set(false);
+        });
+    };
+
     move || {
         if !show_key_modal.get() {
             return view! { <div class="hidden"></div> }.into_any();
@@ -687,43 +733,102 @@ fn StreamKeyModal(
         view! {
             <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
                  on:click=move |_| set_show_key_modal.set(false)>
-                <div class="bg-surface-dark rounded-2xl p-6 w-[460px] border border-border-dark shadow-2xl"
+                <div class="bg-surface-dark rounded-2xl p-6 w-[500px] border border-border-dark shadow-2xl"
                      on:click=move |e: web_sys::MouseEvent| e.stop_propagation()>
-                    <div class="flex items-center gap-2.5 mb-5">
-                        <span class="material-symbols-outlined text-primary text-xl">"key"</span>
-                        <h2 class="text-lg font-bold text-white">"ストリームキー設定"</h2>
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-2.5">
+                            <div class="p-2 bg-primary/10 rounded-lg">
+                                <span class="material-symbols-outlined text-primary text-xl">"key"</span>
+                            </div>
+                            <h2 class="text-lg font-bold text-white">"ストリームキー設定"</h2>
+                        </div>
+                        <button
+                            on:click=move |_| set_show_key_modal.set(false)
+                            class="p-1.5 rounded-lg hover:bg-surface-darker text-slate-500 hover:text-white transition-colors"
+                        >
+                            <span class="material-symbols-outlined text-[20px]">"close"</span>
+                        </button>
                     </div>
+
                     {match info {
                         Some(ref resp) => {
                             let key = resp.stream_key.clone().unwrap_or_default();
                             let server = resp.server_url.clone();
-                            let server_copy = server.clone();
-                            let key_copy = key.clone();
+                            let server_for_copy = server.clone();
+                            let key_for_copy = key.clone();
                             view! {
-                                <div class="space-y-3">
+                                <div class="space-y-4">
+                                    // Server URL
                                     <div>
-                                        <label class="text-xs text-slate-500 block mb-1">"サーバーURL"</label>
-                                        <div
-                                            class="bg-surface-darker p-2.5 rounded-lg font-mono text-xs break-all border border-border-dark text-slate-300 cursor-pointer hover:border-primary/50 transition-colors"
-                                            title="クリックでコピー"
-                                            on:click=move |_| copy_to_clipboard(&server_copy)
-                                        >{server}</div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1.5">"サーバーURL"</label>
+                                        <div class="flex gap-2">
+                                            <div class="flex-1 bg-surface-darker p-3 rounded-lg font-mono text-xs break-all border border-border-dark text-slate-300 select-all">
+                                                {server}
+                                            </div>
+                                            <button
+                                                on:click=move |_| copy_with_feedback(server_for_copy.clone(), set_server_copied)
+                                                class="px-3 rounded-lg border border-border-dark hover:border-primary/50 bg-surface-darker hover:bg-primary/10 text-slate-400 hover:text-primary transition-all flex items-center gap-1.5 shrink-0"
+                                            >
+                                                <span class="material-symbols-outlined text-[16px]">
+                                                    {move || if server_copied.get() { "check" } else { "content_copy" }}
+                                                </span>
+                                                <span class="text-xs font-medium">
+                                                    {move || if server_copied.get() { "コピー済み" } else { "コピー" }}
+                                                </span>
+                                            </button>
+                                        </div>
                                     </div>
+
+                                    // Stream Key
                                     <div>
-                                        <label class="text-xs text-slate-500 block mb-1">"ストリームキー"</label>
-                                        <div
-                                            class="bg-surface-darker p-2.5 rounded-lg font-mono text-xs break-all border border-border-dark text-slate-300 cursor-pointer hover:border-primary/50 transition-colors"
-                                            title="クリックでコピー"
-                                            on:click=move |_| copy_to_clipboard(&key_copy)
-                                        >{key}</div>
+                                        <label class="text-xs font-medium text-slate-400 block mb-1.5">"ストリームキー"</label>
+                                        <div class="flex gap-2">
+                                            <div class="flex-1 bg-surface-darker p-3 rounded-lg font-mono text-xs break-all border border-border-dark text-slate-300 select-all">
+                                                {key}
+                                            </div>
+                                            <button
+                                                on:click=move |_| copy_with_feedback(key_for_copy.clone(), set_key_copied)
+                                                class="px-3 rounded-lg border border-border-dark hover:border-primary/50 bg-surface-darker hover:bg-primary/10 text-slate-400 hover:text-primary transition-all flex items-center gap-1.5 shrink-0"
+                                            >
+                                                <span class="material-symbols-outlined text-[16px]">
+                                                    {move || if key_copied.get() { "check" } else { "content_copy" }}
+                                                </span>
+                                                <span class="text-xs font-medium">
+                                                    {move || if key_copied.get() { "コピー済み" } else { "コピー" }}
+                                                </span>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <p class="text-[10px] text-slate-600 leading-relaxed">"OBSの設定 → 配信 → サービス「カスタム」を選択し、上記のサーバーURLとストリームキーを入力してください。"</p>
+
+                                    <div class="bg-surface-darker/50 rounded-lg p-3 border border-border-dark/50">
+                                        <p class="text-[11px] text-slate-500 leading-relaxed flex items-start gap-2">
+                                            <span class="material-symbols-outlined text-[14px] text-slate-600 mt-0.5 shrink-0">"info"</span>
+                                            "OBSの設定 → 配信 → サービス「カスタム」を選択し、上記のサーバーURLとストリームキーを入力してください。"
+                                        </p>
+                                    </div>
                                 </div>
                             }.into_any()
                         }
-                        None => view! { <p class="text-slate-500 text-sm text-center py-4">"ストリームキーが未生成です。"</p> }.into_any(),
+                        None => view! {
+                            <div class="flex flex-col items-center py-8">
+                                <div class="w-16 h-16 bg-surface-darker rounded-full flex items-center justify-center mb-4 border border-border-dark">
+                                    <span class="material-symbols-outlined text-3xl text-slate-600">"vpn_key_off"</span>
+                                </div>
+                                <p class="text-sm text-slate-400 font-medium mb-1">"ストリームキーが未生成です"</p>
+                                <p class="text-xs text-slate-600">"配信を開始するにはキーを生成してください"</p>
+                            </div>
+                        }.into_any(),
                     }}
-                    <div class="mt-5 flex justify-end">
+
+                    <div class="mt-5 flex justify-between items-center">
+                        <button
+                            on:click=on_generate
+                            disabled=move || is_generating.get()
+                            class="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-black text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                            <span class="material-symbols-outlined text-[16px]">"refresh"</span>
+                            {move || if is_generating.get() { "生成中..." } else if stream_key_info.get().is_some() { "再生成" } else { "キーを生成" }}
+                        </button>
                         <button
                             on:click=move |_| set_show_key_modal.set(false)
                             class="px-5 py-2 rounded-lg bg-surface-darker hover:bg-border-dark text-slate-400 text-xs font-bold border border-border-dark transition-colors"

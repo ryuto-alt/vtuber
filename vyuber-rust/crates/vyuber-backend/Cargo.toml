@@ -16,7 +16,9 @@ tokio = { workspace = true }
 # RTMP (placeholder for MVP - sheave not available on crates.io)
 # Full RTMP implementation will be added in production
 tokio-util = { version = "0.7", features = ["io"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 bytes = "1.5"
+futures-util = "0.3"
 
 # HTTP Client (Gemini API)
 reqwest = { version = "0.12", features = ["json"] }
@@ -36,6 +38,7 @@ thiserror = { workspace = true }
 # Logging
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
 
 # Shared Types
 vyuber-shared = { workspace = true }

@@ -64,12 +64,12 @@ pub async fn start_ffmpeg_listener(
     });
 
     // stdoutからFLVデータを読み取ってbroadcast
-    // 32KBバッファでシステムコール回数を削減
     let key_for_task = stream_key;
     tokio::spawn(async move {
         let mut reader = tokio::io::BufReader::with_capacity(32768, stdout);
         let mut buf = BytesMut::zeroed(32768);
         let mut total_bytes: u64 = 0;
+        let start_time = std::time::Instant::now();
         loop {
             match reader.read(&mut buf).await {
                 Ok(0) => {
@@ -78,7 +78,6 @@ pub async fn start_ffmpeg_listener(
                 }
                 Ok(n) => {
                     total_bytes += n as u64;
-                    // freeze()でゼロコピーのBytesに変換
                     let chunk = Bytes::copy_from_slice(&buf[..n]);
 
                     // ヘッダーバッファに保存（ロック1回）
@@ -87,7 +86,8 @@ pub async fn start_ffmpeg_listener(
                     let _ = sender.send(chunk);
 
                     if total_bytes <= 32768 {
-                        info!("FFmpeg: received {} bytes (total: {})", n, total_bytes);
+                        info!("[TIMING] FFmpeg first data after {:.1}s, {} bytes (total: {})",
+                            start_time.elapsed().as_secs_f64(), n, total_bytes);
                     }
                 }
                 Err(e) => {

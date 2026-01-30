@@ -275,7 +275,7 @@ fn VideoPreview(
     // ページ読み込み時にプレイヤーを初期化（常時接続、OBSからのデータが来たら自動再生）
     Effect::new(move |_| {
         spawn_local(async move {
-            gloo_timers::future::TimeoutFuture::new(500).await;
+            gloo_timers::future::TimeoutFuture::new(100).await;
             init_mpegts_player("video-preview", "/api/live/stream");
         });
     });

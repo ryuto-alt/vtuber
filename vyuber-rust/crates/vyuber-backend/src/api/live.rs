@@ -18,16 +18,18 @@ const STREAM_ID: &str = "_rtmp_default";
 pub async fn stream_flv(
     State(stream_manager): State<StreamManager>,
 ) -> Response {
-    tracing::info!("FLV stream request received");
+    let req_start = std::time::Instant::now();
+    tracing::info!("[TIMING] FLV stream request received");
 
-    let data_ready = stream_manager.wait_for_data(STREAM_ID, std::time::Duration::from_secs(30)).await;
+    let data_ready = stream_manager.wait_for_data(STREAM_ID, std::time::Duration::from_secs(10)).await;
     if !data_ready {
-        tracing::info!("Stream not ready, returning 503");
+        tracing::info!("[TIMING] Stream not ready after {:.1}s, returning 503", req_start.elapsed().as_secs_f64());
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             "Stream not ready",
         ).into_response();
     }
+    tracing::info!("[TIMING] Data ready after {:.1}s", req_start.elapsed().as_secs_f64());
 
     let (receiver, header_chunks) = match stream_manager.subscribe_with_headers(STREAM_ID).await {
         Some(result) => result,

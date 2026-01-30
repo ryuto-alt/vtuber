@@ -83,10 +83,14 @@ impl StreamManager {
     }
 
     pub async fn wait_for_data(&self, key: &str, timeout: std::time::Duration) -> bool {
+        // Register interest BEFORE checking to avoid TOCTOU race:
+        // without this, notify_waiters() can fire between has_data_ready() and notified(),
+        // causing a full timeout wait (up to 30s missed notification).
+        let notified = self.data_ready.notified();
         if self.has_data_ready(key).await {
             return true;
         }
-        match tokio::time::timeout(timeout, self.data_ready.notified()).await {
+        match tokio::time::timeout(timeout, notified).await {
             Ok(_) => self.has_data_ready(key).await,
             Err(_) => false,
         }

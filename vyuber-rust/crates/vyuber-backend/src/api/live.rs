@@ -20,8 +20,6 @@ pub async fn stream_flv(
 ) -> Response {
     tracing::info!("FLV stream request received");
 
-    // データ到着を待つ（最大30秒）
-    // subscribe前にwaitすることで、subscribe→データ取得の間のギャップを最小化
     let data_ready = stream_manager.wait_for_data(STREAM_ID, std::time::Duration::from_secs(30)).await;
     if !data_ready {
         tracing::info!("Stream not ready, returning 503");
@@ -31,11 +29,9 @@ pub async fn stream_flv(
         ).into_response();
     }
 
-    // データ到着済み → subscribe + ヘッダー取得をアトミックに実行
     let (receiver, header_chunks) = match stream_manager.subscribe_with_headers(STREAM_ID).await {
         Some(result) => result,
         None => {
-            tracing::warn!("Stream disappeared for {}", STREAM_ID);
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
                 "Stream ended",
@@ -43,14 +39,16 @@ pub async fn stream_flv(
         }
     };
 
-    tracing::info!("Streaming FLV: {} header chunks + live data", header_chunks.len());
+    tracing::info!("Streaming FLV: {} header chunks + live", header_chunks.len());
 
     let header_stream = futures_util::stream::iter(
         header_chunks.into_iter().map(Ok::<Bytes, std::io::Error>)
     );
 
+    // BroadcastStreamのLagged（メッセージドロップ）を無視して継続
+    // FLVはキーフレームで自己修復するので、ドロップされても次のキーフレームで復帰
     let live_stream = BroadcastStream::new(receiver)
-        .filter_map(|result: Result<Bytes, _>| {
+        .filter_map(|result| {
             futures_util::future::ready(result.ok())
         })
         .map(Ok::<Bytes, std::io::Error>);

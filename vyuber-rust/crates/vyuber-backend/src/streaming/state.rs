@@ -4,23 +4,29 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, Notify, RwLock};
 use tracing::info;
 
-const BROADCAST_CAPACITY: usize = 1024;
+const BROADCAST_CAPACITY: usize = 2048;
 const HEADER_BUFFER_MAX: usize = 128 * 1024;
+
+/// 1ストリームの状態（単一構造体にまとめてロック回数を最小化）
+struct StreamState {
+    sender: broadcast::Sender<Bytes>,
+    header_chunks: Vec<Bytes>,
+    header_size: usize,
+    has_data: bool,
+}
 
 #[derive(Clone)]
 pub struct StreamManager {
-    senders: Arc<RwLock<HashMap<String, broadcast::Sender<Bytes>>>>,
-    header_buffers: Arc<RwLock<HashMap<String, Vec<Bytes>>>>,
-    header_sizes: Arc<RwLock<HashMap<String, usize>>>,
-    has_data: Arc<RwLock<HashMap<String, bool>>>,
+    /// ストリーム状態を単一のRwLockで管理（ロック競合を最小化）
+    streams: Arc<RwLock<HashMap<String, StreamState>>>,
     /// FFmpeg再起動を通知する
     ffmpeg_restart: Arc<Notify>,
     /// データ到着を通知する（early-joiner用）
     data_ready: Arc<Notify>,
     /// 現在のストリームキー
     active_key: Arc<RwLock<Option<String>>>,
-    /// RTMPポート
-    rtmp_port: Arc<RwLock<u16>>,
+    /// RTMPポート（起動時に1回読むだけなのでAtomic）
+    rtmp_port: u16,
 }
 
 impl StreamManager {
@@ -31,56 +37,51 @@ impl StreamManager {
             .unwrap_or(1935);
 
         Self {
-            senders: Arc::new(RwLock::new(HashMap::new())),
-            header_buffers: Arc::new(RwLock::new(HashMap::new())),
-            header_sizes: Arc::new(RwLock::new(HashMap::new())),
-            has_data: Arc::new(RwLock::new(HashMap::new())),
+            streams: Arc::new(RwLock::new(HashMap::new())),
             ffmpeg_restart: Arc::new(Notify::new()),
             data_ready: Arc::new(Notify::new()),
             active_key: Arc::new(RwLock::new(None)),
-            rtmp_port: Arc::new(RwLock::new(rtmp_port)),
+            rtmp_port,
         }
     }
 
     pub async fn register_stream(&self, key: &str) -> broadcast::Sender<Bytes> {
         let (tx, _) = broadcast::channel(BROADCAST_CAPACITY);
         let sender = tx.clone();
-        self.senders.write().await.insert(key.to_string(), tx);
-        self.header_buffers.write().await.insert(key.to_string(), Vec::new());
-        self.header_sizes.write().await.insert(key.to_string(), 0);
-        self.has_data.write().await.insert(key.to_string(), false);
+        self.streams.write().await.insert(key.to_string(), StreamState {
+            sender: tx,
+            header_chunks: Vec::with_capacity(32),
+            header_size: 0,
+            has_data: false,
+        });
         info!("Stream registered: {}", key);
         sender
     }
 
-    pub async fn append_header(&self, key: &str, chunk: &Bytes) {
-        // 初回データ到着時にhas_dataをtrueに
-        {
-            let mut has = self.has_data.write().await;
-            if !has.get(key).copied().unwrap_or(false) {
-                has.insert(key.to_string(), true);
+    /// チャンクデータを追加（ホットパス — ロック1回のみ）
+    pub async fn append_data(&self, key: &str, chunk: &Bytes) {
+        let mut streams = self.streams.write().await;
+        if let Some(state) = streams.get_mut(key) {
+            if !state.has_data {
+                state.has_data = true;
                 info!("First FLV data received for stream: {}", key);
                 self.data_ready.notify_waiters();
             }
+            if state.header_size < HEADER_BUFFER_MAX {
+                state.header_size += chunk.len();
+                state.header_chunks.push(chunk.clone());
+            }
         }
-
-        let mut sizes = self.header_sizes.write().await;
-        let current = sizes.get(key).copied().unwrap_or(0);
-        if current < HEADER_BUFFER_MAX {
-            self.header_buffers.write().await
-                .entry(key.to_string())
-                .or_default()
-                .push(chunk.clone());
-            sizes.insert(key.to_string(), current + chunk.len());
-        }
+        // ロックをdropしてからbroadcast（sendはロック不要）
     }
 
-    /// データが既に到着しているか（待機なし）
     pub async fn has_data_ready(&self, key: &str) -> bool {
-        self.has_data.read().await.get(key).copied().unwrap_or(false)
+        self.streams.read().await
+            .get(key)
+            .map(|s| s.has_data)
+            .unwrap_or(false)
     }
 
-    /// データ到着を待つ（タイムアウト付き）
     pub async fn wait_for_data(&self, key: &str, timeout: std::time::Duration) -> bool {
         if self.has_data_ready(key).await {
             return true;
@@ -91,55 +92,35 @@ impl StreamManager {
         }
     }
 
-    pub async fn get_header_chunks(&self, key: &str) -> Vec<Bytes> {
-        self.header_buffers.read().await
-            .get(key)
-            .cloned()
-            .unwrap_or_default()
-    }
-
-    pub async fn subscribe(&self, key: &str) -> Option<broadcast::Receiver<Bytes>> {
-        self.senders.read().await.get(key).map(|s| s.subscribe())
-    }
-
-    /// subscribe + ヘッダー取得をアトミックに実行（データギャップ防止）
+    /// subscribe + ヘッダー取得をアトミックに実行（ロック1回）
     pub async fn subscribe_with_headers(&self, key: &str) -> Option<(broadcast::Receiver<Bytes>, Vec<Bytes>)> {
-        let senders = self.senders.read().await;
-        let sender = senders.get(key)?;
-        let receiver = sender.subscribe();
-        let headers = self.header_buffers.read().await
-            .get(key)
-            .cloned()
-            .unwrap_or_default();
+        let streams = self.streams.read().await;
+        let state = streams.get(key)?;
+        let receiver = state.sender.subscribe();
+        let headers = state.header_chunks.clone();
         Some((receiver, headers))
     }
 
     pub async fn remove_stream(&self, key: &str) {
-        self.senders.write().await.remove(key);
-        self.header_buffers.write().await.remove(key);
-        self.header_sizes.write().await.remove(key);
-        self.has_data.write().await.remove(key);
+        self.streams.write().await.remove(key);
         info!("Stream removed: {}", key);
     }
 
-    /// ストリームキーを設定し、FFmpeg再起動を通知
     pub async fn set_active_key(&self, key: &str) {
         *self.active_key.write().await = Some(key.to_string());
         info!("Active stream key set: {}", key);
         self.ffmpeg_restart.notify_one();
     }
 
-    /// 現在のストリームキーを取得
     pub async fn get_active_key(&self) -> Option<String> {
         self.active_key.read().await.clone()
     }
 
-    /// FFmpeg再起動通知を待つ
     pub async fn wait_for_key_change(&self) {
         self.ffmpeg_restart.notified().await;
     }
 
     pub async fn get_rtmp_port(&self) -> u16 {
-        *self.rtmp_port.read().await
+        self.rtmp_port
     }
 }

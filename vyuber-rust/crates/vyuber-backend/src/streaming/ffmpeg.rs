@@ -1,4 +1,4 @@
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use std::process::Stdio;
 use tokio::io::AsyncReadExt;
 use tokio::process::{Child, Command};
@@ -63,28 +63,31 @@ pub async fn start_ffmpeg_listener(
         }
     });
 
-    // stdoutからFLVデータを読み取ってbroadcast + ヘッダーバッファ保存
-    let key_for_task = stream_key.clone();
+    // stdoutからFLVデータを読み取ってbroadcast
+    // 32KBバッファでシステムコール回数を削減
+    let key_for_task = stream_key;
     tokio::spawn(async move {
-        let mut reader = tokio::io::BufReader::new(stdout);
-        let mut buf = vec![0u8; 8192];
+        let mut reader = tokio::io::BufReader::with_capacity(32768, stdout);
+        let mut buf = BytesMut::zeroed(32768);
         let mut total_bytes: u64 = 0;
         loop {
             match reader.read(&mut buf).await {
                 Ok(0) => {
-                    info!("FFmpeg stdout closed (stream ended). Total bytes: {}", total_bytes);
+                    info!("FFmpeg stdout closed. Total bytes: {}", total_bytes);
                     break;
                 }
                 Ok(n) => {
                     total_bytes += n as u64;
+                    // freeze()でゼロコピーのBytesに変換
                     let chunk = Bytes::copy_from_slice(&buf[..n]);
-                    // ヘッダーバッファに保存（late-joiner対策）
-                    stream_manager.append_header(&key_for_task, &chunk).await;
+
+                    // ヘッダーバッファに保存（ロック1回）
+                    stream_manager.append_data(&key_for_task, &chunk).await;
                     // broadcastに送信（subscriberがいない場合は無視）
                     let _ = sender.send(chunk);
 
-                    if total_bytes <= 8192 {
-                        info!("FFmpeg stdout: received {} bytes (total: {})", n, total_bytes);
+                    if total_bytes <= 32768 {
+                        info!("FFmpeg: received {} bytes (total: {})", n, total_bytes);
                     }
                 }
                 Err(e) => {

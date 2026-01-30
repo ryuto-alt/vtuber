@@ -12,8 +12,8 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 mod api;
 mod config;
 mod services;
-mod rtmp;
 mod streaming;
+mod mediamtx;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -31,13 +31,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Starting VYuber Rust Backend...");
 
+    // MediaMTXをバックグラウンドで起動
+    if let Err(e) = mediamtx::start_mediamtx().await {
+        tracing::error!("Failed to start MediaMTX: {}", e);
+        tracing::warn!("Continuing without MediaMTX — manual startup required");
+    }
+
     // StreamManagerを初期化
     let stream_manager = streaming::StreamManager::new();
-
-    // RTMPサーバー（FFmpegリスナー）をバックグラウンドで起動
-    if let Err(e) = rtmp::start_rtmp_server(stream_manager.clone()).await {
-        tracing::error!("Failed to start RTMP server: {}", e);
-    }
 
     let static_path = std::env::var("STATIC_DIR")
         .unwrap_or_else(|_| "crates/vyuber-backend/static".to_string());
@@ -51,13 +52,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .delete(api::stream_key::delete_key)
         )
         .route("/api/chat", post(api::chat::handle_chat))
-        .route("/api/live/stream", get(api::live::stream_flv))
+        .route("/api/live/status", get(api::live::stream_status))
+        .route("/api/live/whep", post(api::live::whep_proxy))
         .nest_service("/", ServeDir::new(static_path))
         .layer(CorsLayer::permissive())
         .with_state(stream_manager);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::info!("Axum server listening on {}", addr);
+    tracing::info!("MediaMTX WebRTC: http://localhost:8889/");
+    tracing::info!("MediaMTX RTMP: rtmp://localhost:1935/live/{{stream_key}}");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

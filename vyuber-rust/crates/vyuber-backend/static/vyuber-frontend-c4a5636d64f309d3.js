@@ -290,8 +290,8 @@ function __wbg_get_imports() {
         __wbg_info_148d043840582012: function(arg0) {
             console.info(arg0);
         },
-        __wbg_initMpegtsPlayer_1fcd37c68b2bcf76: function(arg0, arg1, arg2, arg3) {
-            window.initMpegtsPlayer(getStringFromWasm0(arg0, arg1), getStringFromWasm0(arg2, arg3));
+        __wbg_initWebrtcPlayer_6df0bbeddf65693c: function(arg0, arg1) {
+            window.initWebrtcPlayer(getStringFromWasm0(arg0, arg1));
         },
         __wbg_insertBefore_1468142836e61a51: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = arg0.insertBefore(arg1, arg2);

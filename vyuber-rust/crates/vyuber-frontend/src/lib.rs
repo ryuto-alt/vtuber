@@ -9,11 +9,11 @@ mod services;
 // JS bindings
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = window, js_name = initMpegtsPlayer)]
-    fn init_mpegts_player(video_element_id: &str, stream_url: &str);
+    #[wasm_bindgen(js_namespace = window, js_name = initWebrtcPlayer)]
+    fn init_webrtc_player(video_element_id: &str);
 
-    #[wasm_bindgen(js_namespace = window, js_name = destroyMpegtsPlayer)]
-    fn destroy_mpegts_player();
+    #[wasm_bindgen(js_namespace = window, js_name = destroyWebrtcPlayer)]
+    fn destroy_webrtc_player();
 }
 
 // JS helper for fullscreen
@@ -276,7 +276,7 @@ fn VideoPreview(
     Effect::new(move |_| {
         spawn_local(async move {
             gloo_timers::future::TimeoutFuture::new(100).await;
-            init_mpegts_player("video-preview", "/api/live/stream");
+            init_webrtc_player("video-preview");
         });
     });
 

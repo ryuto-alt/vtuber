@@ -107,10 +107,13 @@ pub async fn run_native_rtmp(
     let mut chunk_size: u32 = 128;
     let mut chunks: HashMap<u32, ChunkState> = HashMap::new();
     let mut flv_started = false;
+    let mut headers_done = false; // ヘッダー収集完了フラグ（ロック回避用）
     let mut total_recv: u64 = 0;
     let mut ack_window: u32 = 2500000;
     let mut last_ack: u64 = 0;
     let t0 = std::time::Instant::now();
+    let mut gop_buf: Vec<Bytes> = Vec::with_capacity(300); // GOPバッファ（最新キーフレーム〜）
+    let mut got_keyframe = false;
 
     loop {
         let first = match r.read_u8().await {
@@ -267,7 +270,39 @@ pub async fn run_native_rtmp(
                     info!("[NativeRTMP] FLV started after {:.2}s", t0.elapsed().as_secs_f64());
                 }
                 let tag = flv_tag(msg_type, timestamp, &msg_data);
-                stream_manager.append_data(&stream_id, &tag).await;
+
+                // ヘッダー収集中のみappend_data（ロック取得）
+                // 完了後はbroadcastのみ（ゼロロック高速パス）
+                if !headers_done {
+                    stream_manager.append_data(&stream_id, &tag).await;
+                    if stream_manager.is_header_full(&stream_id).await {
+                        headers_done = true;
+                        info!("[NativeRTMP] Header buffer full, switching to zero-lock fast path");
+                    }
+                }
+
+                // GOPバッファ管理: 映像キーフレームでリセット
+                if msg_type == 9 && msg_data.len() > 0 {
+                    // H.264: first byte bit4=frame_type, 1=keyframe
+                    let is_keyframe = (msg_data[0] >> 4) == 1;
+                    if is_keyframe {
+                        gop_buf.clear();
+                        got_keyframe = true;
+                    }
+                }
+                if got_keyframe {
+                    gop_buf.push(tag.clone());
+                    // GOPバッファが大きくなりすぎないよう制限（約5秒分@60fps）
+                    if gop_buf.len() > 600 {
+                        gop_buf.drain(..100);
+                    }
+                }
+
+                // StreamManagerにGOPバッファを定期更新
+                if msg_type == 9 && msg_data.len() > 0 && (msg_data[0] >> 4) == 1 {
+                    stream_manager.update_gop(&stream_id, &gop_buf).await;
+                }
+
                 let _ = sender.send(tag);
             }
             // AMF0 Command

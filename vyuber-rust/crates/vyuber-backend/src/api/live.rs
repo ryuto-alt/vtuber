@@ -1,69 +1,122 @@
 use axum::{
-    extract::State,
-    response::{Response, IntoResponse},
-    http::{StatusCode, header},
     body::Body,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::{Json, IntoResponse, Response},
 };
-use bytes::Bytes;
-use futures_util::stream::StreamExt;
-use tokio_stream::wrappers::BroadcastStream;
+use serde::Serialize;
 
 use crate::streaming::StreamManager;
 
-const STREAM_ID: &str = "_rtmp_default";
+#[derive(Serialize)]
+pub struct StreamStatusResponse {
+    pub active: bool,
+    pub webrtc_url: String,
+    pub whep_url: String,
+}
 
-/// HTTP-FLVストリーミングエンドポイント
-///
-/// GET /api/live/stream
-pub async fn stream_flv(
+/// GET /api/live/status — MediaMTXのストリーム状態を確認
+pub async fn stream_status(
     State(stream_manager): State<StreamManager>,
-) -> Response {
-    let req_start = std::time::Instant::now();
-    tracing::info!("[TIMING] FLV stream request received");
+) -> impl IntoResponse {
+    let webrtc_port = stream_manager.get_webrtc_port();
+    let key = stream_manager.get_active_key().await;
 
-    let data_ready = stream_manager.wait_for_data(STREAM_ID, std::time::Duration::from_secs(10)).await;
-    if !data_ready {
-        tracing::info!("[TIMING] Stream not ready after {:.1}s, returning 503", req_start.elapsed().as_secs_f64());
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            "Stream not ready",
-        ).into_response();
-    }
-    tracing::info!("[TIMING] Data ready after {:.1}s", req_start.elapsed().as_secs_f64());
-
-    let (receiver, header_chunks) = match stream_manager.subscribe_with_headers(STREAM_ID).await {
-        Some(result) => result,
-        None => {
-            return (
-                StatusCode::SERVICE_UNAVAILABLE,
-                "Stream ended",
-            ).into_response();
-        }
+    let stream_path = match &key {
+        Some(k) => format!("live/{}", k),
+        None => "live/stream".to_string(),
     };
 
-    tracing::info!("Streaming FLV: {} header chunks + live", header_chunks.len());
+    // MediaMTX APIでアクティブパスを確認
+    let active = check_mediamtx_stream(&stream_path).await;
 
-    let header_stream = futures_util::stream::iter(
-        header_chunks.into_iter().map(Ok::<Bytes, std::io::Error>)
+    let webrtc_url = format!("http://localhost:{}/{}", webrtc_port, stream_path);
+    let whep_url = format!("http://localhost:{}/{}/whep", webrtc_port, stream_path);
+
+    Json(StreamStatusResponse {
+        active,
+        webrtc_url,
+        whep_url,
+    })
+}
+
+/// POST /api/live/whep — MediaMTXのWHEPエンドポイントへプロキシ
+pub async fn whep_proxy(
+    State(stream_manager): State<StreamManager>,
+    headers: HeaderMap,
+    body: String,
+) -> Response {
+    let webrtc_port = stream_manager.get_webrtc_port();
+    let key = stream_manager.get_active_key().await;
+    let stream_path = match &key {
+        Some(k) => format!("live/{}", k),
+        None => "live/stream".to_string(),
+    };
+
+    let whep_url = format!("http://127.0.0.1:{}/{}/whep", webrtc_port, stream_path);
+
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
+    let content_type = headers
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/sdp");
+
+    match client
+        .post(&whep_url)
+        .header("Content-Type", content_type)
+        .body(body)
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+            let resp_headers = resp.headers().clone();
+            let resp_body = resp.bytes().await.unwrap_or_default();
+
+            let mut response = Response::builder().status(status);
+            // Forward relevant headers
+            for (name, value) in resp_headers.iter() {
+                if name == "content-type" || name == "location" {
+                    response = response.header(name, value);
+                }
+            }
+            response.body(Body::from(resp_body)).unwrap_or_else(|_| StatusCode::BAD_GATEWAY.into_response())
+        }
+        Err(_) => StatusCode::BAD_GATEWAY.into_response(),
+    }
+}
+
+/// MediaMTX APIでストリームがアクティブか確認
+async fn check_mediamtx_stream(path: &str) -> bool {
+    let api_url = format!(
+        "http://127.0.0.1:{}/v3/paths/list",
+        std::env::var("MEDIAMTX_API_PORT").unwrap_or("9997".to_string())
     );
 
-    // BroadcastStreamのLagged（メッセージドロップ）を無視して継続
-    // FLVはキーフレームで自己修復するので、ドロップされても次のキーフレームで復帰
-    let live_stream = BroadcastStream::new(receiver)
-        .filter_map(|result| {
-            futures_util::future::ready(result.ok())
-        })
-        .map(Ok::<Bytes, std::io::Error>);
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
 
-    let body = Body::from_stream(header_stream.chain(live_stream));
-
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "video/x-flv")
-        .header(header::CACHE_CONTROL, "no-cache, no-store")
-        .header(header::CONNECTION, "keep-alive")
-        .header(header::TRANSFER_ENCODING, "chunked")
-        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
-        .body(body)
-        .unwrap()
+    match client.get(&api_url).send().await {
+        Ok(resp) => {
+            if let Ok(body) = resp.text().await {
+                // パスがレスポンスに含まれていればアクティブ
+                body.contains(path) && body.contains("\"ready\":true")
+            } else {
+                false
+            }
+        }
+        Err(_) => false,
+    }
 }

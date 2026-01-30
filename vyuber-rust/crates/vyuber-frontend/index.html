@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AIVID - AI Streaming Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🟢</text></svg>">
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -65,10 +66,9 @@
             font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
     </style>
-    <!-- mpegts player -->
-    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
-    <link data-trunk rel="copy-file" href="public/mpegts-wrapper.js"/>
-    <script src="mpegts-wrapper.js"></script>
+    <!-- WebRTC WHEP player (MediaMTX) -->
+    <link data-trunk rel="copy-file" href="public/webrtc-player.js"/>
+    <script src="webrtc-player.js"></script>
     <link data-trunk rel="rust" data-wasm-opt="z"/>
 </head>
 <body class="bg-background-dark text-slate-300 h-screen overflow-hidden flex flex-col selection:bg-primary selection:text-white">

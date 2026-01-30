@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AIVID - AI Streaming Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🟢</text></svg>">
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -65,14 +66,13 @@
             font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
     </style>
-    <!-- mpegts player -->
-    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    <!-- WebRTC WHEP player (MediaMTX) -->
     
-    <script src="mpegts-wrapper.js"></script>
+    <script src="webrtc-player.js"></script>
     
 <script type="module">
-import init, * as bindings from '/vyuber-frontend-8d9d0dad41a6726d.js';
-const wasm = await init({ module_or_path: '/vyuber-frontend-8d9d0dad41a6726d_bg.wasm' });
+import init, * as bindings from '/vyuber-frontend-c4a5636d64f309d3.js';
+const wasm = await init({ module_or_path: '/vyuber-frontend-c4a5636d64f309d3_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -81,7 +81,7 @@ window.wasmBindings = bindings;
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
-<link rel="modulepreload" href="/vyuber-frontend-8d9d0dad41a6726d.js" crossorigin="anonymous" integrity="sha384-cQikyPZVYGHg9RWmKu6ciBI+jUjeRWA5VvpXh3YyJcjtYMNfxRWxxFQ8KHCTiXjA"><link rel="modulepreload" href="/snippets/vyuber-frontend-0804aa5fb07b7e29/inline0.js" crossorigin="anonymous" integrity="sha384-9X3NE9p43q/8OLj5iXa2sUylJ2ATpr0Jh2z4X5DsRpw0HeIF5lg+ex2OCpsiwIx2"><link rel="preload" href="/vyuber-frontend-8d9d0dad41a6726d_bg.wasm" crossorigin="anonymous" integrity="sha384-EQQdZSEiAHx7up2K+WtjO3T0iZk1DDzJl0lKA1o2fZ7xo1NVpwyKow7L4rfe2fe/" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="/vyuber-frontend-c4a5636d64f309d3.js" crossorigin="anonymous" integrity="sha384-hEraMd0fvGUxZtmfmIkdA8dWfDbPpvC7DHNbCMuVoMfNn2B0SLy2FA4sOi6dx51h"><link rel="modulepreload" href="/snippets/vyuber-frontend-0804aa5fb07b7e29/inline0.js" crossorigin="anonymous" integrity="sha384-9X3NE9p43q/8OLj5iXa2sUylJ2ATpr0Jh2z4X5DsRpw0HeIF5lg+ex2OCpsiwIx2"><link rel="preload" href="/vyuber-frontend-c4a5636d64f309d3_bg.wasm" crossorigin="anonymous" integrity="sha384-5b3kZHg5xEbAr08ZVa/Kc5/Uq/WjdhxzAZScLkaiw/eBJiozuAmnoXkYHGp6Cc+l" as="fetch" type="application/wasm"></head>
 <body class="bg-background-dark text-slate-300 h-screen overflow-hidden flex flex-col selection:bg-primary selection:text-white">
 </body>
 </html>

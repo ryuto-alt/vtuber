@@ -18,10 +18,10 @@ pub async fn start_ffmpeg_listener(
 
     let mut cmd = Command::new("ffmpeg");
     cmd.args([
-        "-fflags", "nobuffer+genpts",
+        "-fflags", "nobuffer+genpts+discardcorrupt",
         "-flags", "low_delay",
-        "-probesize", "500000",
-        "-analyzeduration", "500000",
+        "-probesize", "32768",
+        "-analyzeduration", "0",
         "-listen", "1",
         "-i", listen_url,
         "-c", "copy",

@@ -3,7 +3,7 @@
     let player = null;
     let retryTimer = null;
     const MAX_PLAYBACK_ERRORS = 30;
-    const RETRY_INTERVAL = 3000;
+    const RETRY_INTERVAL = 1000;
 
     window.initMpegtsPlayer = function(videoElementId, streamUrl) {
         if (typeof mpegts === 'undefined') return false;

@@ -73,6 +73,7 @@ pub fn App() -> impl IntoView {
     let (volume, set_volume) = signal(0.66f64);
     let (msg_count, set_msg_count) = signal(0usize);
     let (stream_title, set_stream_title) = signal(String::new());
+    let (show_profile_menu, set_show_profile_menu) = signal(false);
 
     let start_listening = move || {
         set_is_listening.set(true);
@@ -131,7 +132,7 @@ pub fn App() -> impl IntoView {
     view! {
         <Header is_listening=is_listening/>
         <div class="flex flex-1 overflow-hidden min-h-0">
-            <Sidebar current_page=current_page set_current_page=set_current_page/>
+            <Sidebar current_page=current_page set_current_page=set_current_page show_profile_menu=show_profile_menu set_show_profile_menu=set_show_profile_menu/>
             {move || {
                 let page = current_page.get();
                 match page {
@@ -165,6 +166,8 @@ pub fn App() -> impl IntoView {
                     "analytics" => view! { <AnalyticsPage/> }.into_any(),
                     "streaming" => view! { <StreamingPage set_show_key_modal=set_show_key_modal stream_key_info=stream_key_info set_stream_key_info=set_stream_key_info stream_title=stream_title set_stream_title=set_stream_title/> }.into_any(),
                     "settings" => view! { <SettingsPage/> }.into_any(),
+                    "mypage" => view! { <MyPage/> }.into_any(),
+                    "plan" => view! { <PlanPage/> }.into_any(),
                     _ => view! { <div></div> }.into_any(),
                 }
             }}
@@ -175,6 +178,11 @@ pub fn App() -> impl IntoView {
             stream_key_info=stream_key_info
             set_stream_key_info=set_stream_key_info
         />
+        <ProfileMenu
+            show=show_profile_menu
+            set_show=set_show_profile_menu
+            set_current_page=set_current_page
+        />
     }
 }
 
@@ -184,6 +192,9 @@ pub fn App() -> impl IntoView {
 fn Sidebar(
     current_page: ReadSignal<&'static str>,
     set_current_page: WriteSignal<&'static str>,
+    #[allow(unused)]
+    show_profile_menu: ReadSignal<bool>,
+    set_show_profile_menu: WriteSignal<bool>,
 ) -> impl IntoView {
     let nav_items = vec![
         ("dashboard", "space_dashboard", "ダッシュボード"),
@@ -242,12 +253,10 @@ fn Sidebar(
             <div class="flex flex-col items-center gap-1.5">
                 // User avatar
                 <button
-                    class="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-white border border-border-dark hover:opacity-80 transition-opacity relative group"
+                    on:click=move |_| set_show_profile_menu.update(|v| *v = !*v)
+                    class="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-white border border-border-dark hover:opacity-80 transition-opacity"
                 >
                     <span class="text-xs font-bold">"JD"</span>
-                    <span class="absolute left-full ml-2 px-3 py-1.5 bg-surface-dark border border-border-dark rounded-lg text-xs font-medium text-slate-200 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 shadow-xl z-[100]">
-                        "プロフィール"
-                    </span>
                 </button>
                 // Settings
                 <button
@@ -1203,6 +1212,267 @@ fn SettingsPage() -> impl IntoView {
                 </div>
             </div>
         </main>
+    }
+}
+
+// ─── My Page ────────────────────────────────────────────────────────────────
+
+#[component]
+fn MyPage() -> impl IntoView {
+    view! {
+        <main class="flex-1 flex flex-col p-6 overflow-y-auto min-w-0 bg-background-dark">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold text-white">"マイページ"</h2>
+                <p class="text-sm text-slate-500 mt-1">"アカウント情報とプロフィール設定"</p>
+            </div>
+            <div class="bg-surface-dark border border-border-dark rounded-xl p-8 flex-1 flex items-center justify-center max-w-2xl">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-surface-darker rounded-full flex items-center justify-center mx-auto mb-4 border border-border-dark">
+                        <span class="material-symbols-outlined text-3xl text-slate-600">"person"</span>
+                    </div>
+                    <p class="text-sm text-slate-400 font-medium">"準備中"</p>
+                    <p class="text-xs text-slate-600 mt-1">"マイページは今後実装予定です"</p>
+                </div>
+            </div>
+        </main>
+    }
+}
+
+// ─── Plan Page ──────────────────────────────────────────────────────────────
+
+#[component]
+fn PlanPage() -> impl IntoView {
+    let (faq_open, set_faq_open) = signal([false; 4]);
+
+    let toggle_faq = move |idx: usize| {
+        set_faq_open.update(|arr| arr[idx] = !arr[idx]);
+    };
+
+    view! {
+        <main class="flex-1 flex flex-col overflow-y-auto min-w-0 bg-background-dark">
+
+            // ── Hero Section ──
+            <section class="w-full px-6 py-12 md:py-16 text-center">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wide uppercase mb-5 border border-primary/20">
+                    <span class="material-symbols-outlined text-sm">"verified"</span>
+                    "Subscription"
+                </div>
+                <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-[1.15] text-white mb-4">
+                    "配信練習を"<br/>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-300">"次のステージへ"</span>
+                </h1>
+                <p class="text-base md:text-lg text-slate-400 max-w-xl mx-auto font-medium leading-relaxed">
+                    "AIが「熱量のある視聴者」を演じる配信練習環境。"<br class="hidden sm:block"/>
+                    "リスクゼロで、あなたの配信スキルを加速します。"
+                </p>
+            </section>
+
+            // ── Pricing Cards ──
+            <section class="w-full max-w-[900px] mx-auto px-6 pb-12">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    // Free Plan
+                    <div class="flex flex-col rounded-2xl border border-border-dark bg-surface-dark p-7 hover:border-slate-600 transition-all duration-300">
+                        <div class="mb-5">
+                            <h3 class="text-lg font-bold text-white mb-1">"Free"</h3>
+                            <p class="text-sm text-slate-500 font-medium">"配信練習を体験する"</p>
+                        </div>
+                        <div class="flex items-baseline gap-1 mb-6">
+                            <span class="text-4xl font-black text-white tracking-tight">"¥0"</span>
+                            <span class="text-sm font-bold text-slate-600">"/月"</span>
+                        </div>
+                        <button class="w-full rounded-lg h-11 bg-surface-darker text-slate-400 text-sm font-bold border border-border-dark cursor-default mb-6">
+                            "現在のプラン"
+                        </button>
+                        <div class="flex flex-col gap-3">
+                            <div class="flex items-start gap-2.5 text-sm text-slate-300">
+                                <span class="material-symbols-outlined text-primary text-[18px] mt-0.5">"check"</span>
+                                <span>"録画時間: 1回あたり最大10分"</span>
+                            </div>
+                            <div class="flex items-start gap-2.5 text-sm text-slate-300">
+                                <span class="material-symbols-outlined text-primary text-[18px] mt-0.5">"check"</span>
+                                <span>"1日3回までの練習セッション"</span>
+                            </div>
+                            <div class="flex items-start gap-2.5 text-sm text-slate-300">
+                                <span class="material-symbols-outlined text-primary text-[18px] mt-0.5">"check"</span>
+                                <span>"基本AIペルソナ (3種類)"</span>
+                            </div>
+                            <div class="flex items-start gap-2.5 text-sm text-slate-600 line-through">
+                                <span class="material-symbols-outlined text-slate-700 text-[18px] mt-0.5">"close"</span>
+                                <span>"高度なAI性格カスタマイズ"</span>
+                            </div>
+                            <div class="flex items-start gap-2.5 text-sm text-slate-600 line-through">
+                                <span class="material-symbols-outlined text-slate-700 text-[18px] mt-0.5">"close"</span>
+                                <span>"過去データの無制限保存"</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    // Pro Plan
+                    <div class="relative flex flex-col rounded-2xl border-2 border-primary/30 bg-surface-dark p-7 shadow-[0_0_30px_-5px_rgba(16,185,129,0.1)] md:scale-[1.02] z-10">
+                        <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-black text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-sm">
+                            "Most Popular"
+                        </div>
+                        <div class="mb-5">
+                            <h3 class="text-lg font-bold text-primary mb-1 flex items-center gap-2">
+                                "Pro"
+                                <span class="material-symbols-outlined text-base icon-fill">"star"</span>
+                            </h3>
+                            <p class="text-sm text-slate-500 font-medium">"本気で配信デビューを目指す方へ"</p>
+                        </div>
+                        <div class="flex items-baseline gap-1 mb-6">
+                            <span class="text-4xl font-black text-white tracking-tight">"¥2,980"</span>
+                            <span class="text-sm font-bold text-slate-600">"/月"</span>
+                        </div>
+                        <button class="w-full rounded-lg h-11 bg-primary text-black text-sm font-bold shadow-glow hover:bg-primary-hover transition-all mb-6">
+                            "今すぐアップグレード"
+                        </button>
+                        <div class="flex flex-col gap-3">
+                            <div class="flex items-start gap-2.5 text-sm font-semibold text-white">
+                                <span class="material-symbols-outlined text-primary text-[18px] mt-0.5 icon-fill">"check_circle"</span>
+                                <span>"無制限の録画時間・セッション"</span>
+                            </div>
+                            <div class="flex items-start gap-2.5 text-sm text-slate-300">
+                                <span class="material-symbols-outlined text-primary text-[18px] mt-0.5 icon-fill">"check_circle"</span>
+                                <span>"高度なAI性格カスタマイズ"</span>
+                            </div>
+                            <div class="flex items-start gap-2.5 text-sm text-slate-300">
+                                <span class="material-symbols-outlined text-primary text-[18px] mt-0.5 icon-fill">"check_circle"</span>
+                                <span>"追加AIペルソナ (辛口・熱狂的ファン等)"</span>
+                            </div>
+                            <div class="flex items-start gap-2.5 text-sm text-slate-300">
+                                <span class="material-symbols-outlined text-primary text-[18px] mt-0.5 icon-fill">"check_circle"</span>
+                                <span>"過去データの無制限保存・成長ログ"</span>
+                            </div>
+                            <div class="flex items-start gap-2.5 text-sm text-slate-300">
+                                <span class="material-symbols-outlined text-primary text-[18px] mt-0.5 icon-fill">"check_circle"</span>
+                                <span>"トレーニングモード (コーチング機能)"</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            // ── Feature Highlight Banner ──
+            <section class="w-full max-w-[900px] mx-auto px-6 pb-12">
+                <div class="w-full rounded-xl overflow-hidden relative bg-gradient-to-r from-surface-darker via-surface-dark to-surface-darker border border-border-dark p-8 md:p-12">
+                    <div class="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"></div>
+                    <h3 class="text-xl md:text-2xl font-bold text-white max-w-md leading-tight relative z-10">
+                        "失敗しても、"<br/>"誰にも見られない。"
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-3 max-w-sm relative z-10">
+                        "Proプランなら、AI視聴者との対話練習を無制限に。心理的安全性を保ちながら、配信スキルを磨けます。"
+                    </p>
+                </div>
+            </section>
+
+            // ── FAQ ──
+            <section class="w-full max-w-[700px] mx-auto px-6 pb-16">
+                <h3 class="text-lg font-bold text-center mb-6 text-white">"よくある質問"</h3>
+                <div class="flex flex-col gap-3">
+                    {[
+                        ("キャンセルはいつでも可能ですか？", "はい、いつでもアカウント設定からキャンセル可能です。契約期間終了までは引き続きPro機能をご利用いただけます。"),
+                        ("AI視聴者はどのくらいリアルですか？", "LLMベースの文脈理解により、発言内容に応じた質問・感想・ツッコミをリアルタイムで生成します。ペルソナ設定で反応スタイルもカスタマイズ可能です。"),
+                        ("録画データはどこに保存されますか？", "Freeプランではローカル保存のみ（7日間）。Proプランではクラウドに無制限保存され、過去の成長ログとして振り返りに活用できます。"),
+                        ("支払い方法は何がありますか？", "主要なクレジットカード（Visa, Mastercard, AMEX, JCB）に対応しています。"),
+                    ].into_iter().enumerate().map(|(i, (question, answer))| {
+                        let is_open = move || faq_open.get()[i];
+                        view! {
+                            <div class="rounded-xl border border-border-dark bg-surface-dark overflow-hidden transition-all">
+                                <button
+                                    on:click=move |_| toggle_faq(i)
+                                    class="flex cursor-pointer items-center justify-between gap-4 w-full px-5 py-4 text-left"
+                                >
+                                    <p class="text-sm text-white font-semibold">{question}</p>
+                                    <span class=move || format!(
+                                        "material-symbols-outlined text-slate-500 text-[20px] transition-transform duration-200 {}",
+                                        if is_open() { "rotate-180" } else { "" }
+                                    )>"expand_more"</span>
+                                </button>
+                                <div class=move || if is_open() {
+                                    "faq-body faq-open"
+                                } else {
+                                    "faq-body"
+                                }>
+                                    <div>
+                                        <p class="text-slate-400 text-sm leading-relaxed px-5 pb-4">{answer}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }).collect_view()}
+                </div>
+            </section>
+
+            // ── Footer ──
+            <footer class="w-full border-t border-border-dark py-6 px-6">
+                <div class="max-w-[900px] mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+                    <div class="flex items-center gap-2 text-slate-600">
+                        <span class="material-symbols-outlined text-base">"verified_user"</span>
+                        <span class="text-xs font-medium">"14日間返金保証・安全な決済"</span>
+                    </div>
+                    <div class="text-xs text-slate-700">
+                        "© 2025 AIVID. All rights reserved."
+                    </div>
+                </div>
+            </footer>
+        </main>
+    }
+}
+
+// ─── Profile Menu ───────────────────────────────────────────────────────────
+
+#[component]
+fn ProfileMenu(
+    show: ReadSignal<bool>,
+    set_show: WriteSignal<bool>,
+    set_current_page: WriteSignal<&'static str>,
+) -> impl IntoView {
+    move || {
+        if !show.get() {
+            return view! { <div class="hidden"></div> }.into_any();
+        }
+        view! {
+            // Backdrop
+            <div
+                class="fixed inset-0 z-[9998]"
+                on:click=move |_| set_show.set(false)
+            ></div>
+            // Menu
+            <div class="fixed left-[76px] bottom-[60px] w-44 bg-surface-dark border border-border-dark rounded-xl shadow-2xl z-[9999] py-1">
+                <button
+                    on:click=move |_| {
+                        set_current_page.set("mypage");
+                        set_show.set(false);
+                    }
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-surface-darker hover:text-white transition-colors"
+                >
+                    <span class="material-symbols-outlined text-[18px] text-slate-500">"person"</span>
+                    "マイページ"
+                </button>
+                <button
+                    on:click=move |_| {
+                        set_current_page.set("plan");
+                        set_show.set(false);
+                    }
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-surface-darker hover:text-white transition-colors"
+                >
+                    <span class="material-symbols-outlined text-[18px] text-slate-500">"credit_card"</span>
+                    "プラン"
+                </button>
+                <div class="h-px bg-border-dark mx-3 my-1"></div>
+                <button
+                    on:click=move |_| {
+                        set_show.set(false);
+                        log::info!("Logout clicked");
+                    }
+                    class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                    <span class="material-symbols-outlined text-[18px]">"logout"</span>
+                    "ログアウト"
+                </button>
+            </div>
+        }.into_any()
     }
 }
 

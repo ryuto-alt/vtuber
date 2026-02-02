@@ -61,6 +61,7 @@ pub fn main() {
 
 #[component]
 pub fn App() -> impl IntoView {
+    let (current_page, set_current_page) = signal("dashboard");
     let (messages, set_messages) = signal(Vec::<ChatMessage>::new());
     let (is_listening, set_is_listening) = signal(false);
     let (stream_key_info, set_stream_key_info) = signal(None::<StreamKeyResponse>);
@@ -129,28 +130,40 @@ pub fn App() -> impl IntoView {
     view! {
         <Header is_listening=is_listening/>
         <div class="flex flex-1 overflow-hidden min-h-0">
-            <MainPanel
-                is_listening=is_listening
-                start_listening=start_listening
-                stop_listening=stop_listening
-                set_stream_key_info=set_stream_key_info
-                set_show_key_modal=set_show_key_modal
-                is_muted=is_muted
-                set_is_muted=set_is_muted
-                is_paused=is_paused
-                set_is_paused=set_is_paused
-                cam_on=cam_on
-                set_cam_on=set_cam_on
-                volume=volume
-                set_volume=set_volume
-                msg_count=msg_count
-            />
-            <ChatPanel
-                messages=messages
-                chat_input=chat_input
-                set_chat_input=set_chat_input
-                send_chat=send_chat
-            />
+            <Sidebar current_page=current_page set_current_page=set_current_page/>
+            {move || {
+                let page = current_page.get();
+                match page {
+                    "dashboard" => view! {
+                        <MainPanel
+                            is_listening=is_listening
+                            start_listening=start_listening
+                            stop_listening=stop_listening
+                            set_stream_key_info=set_stream_key_info
+                            set_show_key_modal=set_show_key_modal
+                            is_muted=is_muted
+                            set_is_muted=set_is_muted
+                            is_paused=is_paused
+                            set_is_paused=set_is_paused
+                            cam_on=cam_on
+                            set_cam_on=set_cam_on
+                            volume=volume
+                            set_volume=set_volume
+                            msg_count=msg_count
+                        />
+                        <ChatPanel
+                            messages=messages
+                            chat_input=chat_input
+                            set_chat_input=set_chat_input
+                            send_chat=send_chat
+                        />
+                    }.into_any(),
+                    "analytics" => view! { <AnalyticsPage/> }.into_any(),
+                    "streaming" => view! { <StreamingPage set_show_key_modal=set_show_key_modal set_stream_key_info=set_stream_key_info/> }.into_any(),
+                    "settings" => view! { <SettingsPage/> }.into_any(),
+                    _ => view! { <div></div> }.into_any(),
+                }
+            }}
         </div>
         <StreamKeyModal
             show_key_modal=show_key_modal
@@ -158,6 +171,101 @@ pub fn App() -> impl IntoView {
             stream_key_info=stream_key_info
             set_stream_key_info=set_stream_key_info
         />
+    }
+}
+
+// ─── Sidebar ────────────────────────────────────────────────────────────────
+
+#[component]
+fn Sidebar(
+    current_page: ReadSignal<&'static str>,
+    set_current_page: WriteSignal<&'static str>,
+) -> impl IntoView {
+    let nav_items = vec![
+        ("dashboard", "space_dashboard", "ダッシュボード"),
+        ("analytics", "analytics", "分析"),
+        ("streaming", "cast", "配信"),
+    ];
+
+    let btn_class = move |id: &'static str| {
+        move || {
+            if current_page.get() == id {
+                "w-10 h-10 flex items-center justify-center rounded-xl bg-primary/15 text-primary transition-all relative group"
+            } else {
+                "w-10 h-10 flex items-center justify-center rounded-xl text-slate-500 hover:text-slate-300 hover:bg-surface-darker transition-all relative group"
+            }
+        }
+    };
+
+    let settings_cls = move || {
+        if current_page.get() == "settings" {
+            "w-10 h-10 flex items-center justify-center rounded-xl bg-primary/15 text-primary transition-all relative group"
+        } else {
+            "w-10 h-10 flex items-center justify-center rounded-xl text-slate-500 hover:text-slate-300 hover:bg-surface-darker transition-all relative group"
+        }
+    };
+
+    view! {
+        <nav class="w-[68px] bg-surface-dark border-r border-border-dark flex flex-col items-center py-4 flex-shrink-0 z-10">
+            // Top nav
+            <div class="flex flex-col items-center gap-1.5 flex-1">
+                {nav_items.into_iter().map(|(id, icon, tooltip)| {
+                    let cls = btn_class(id);
+                    view! {
+                        <button
+                            on:click=move |_| set_current_page.set(id)
+                            class=cls
+                        >
+                            {move || {
+                                if current_page.get() == id {
+                                    view! {
+                                        <span class="absolute left-0 w-[3px] h-5 bg-primary rounded-r-full"></span>
+                                    }.into_any()
+                                } else {
+                                    view! { <span class="hidden"></span> }.into_any()
+                                }
+                            }}
+                            <span class="material-symbols-outlined text-[20px]">{icon}</span>
+                            <span class="absolute left-full ml-2 px-3 py-1.5 bg-surface-dark border border-border-dark rounded-lg text-xs font-medium text-slate-200 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 shadow-xl z-[100]">
+                                {tooltip}
+                            </span>
+                        </button>
+                    }
+                }).collect_view()}
+            </div>
+
+            // Bottom: user avatar + settings
+            <div class="flex flex-col items-center gap-1.5">
+                // User avatar
+                <button
+                    class="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-white border border-border-dark hover:opacity-80 transition-opacity relative group"
+                >
+                    <span class="text-xs font-bold">"JD"</span>
+                    <span class="absolute left-full ml-2 px-3 py-1.5 bg-surface-dark border border-border-dark rounded-lg text-xs font-medium text-slate-200 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 shadow-xl z-[100]">
+                        "プロフィール"
+                    </span>
+                </button>
+                // Settings
+                <button
+                    on:click=move |_| set_current_page.set("settings")
+                    class=settings_cls
+                >
+                    {move || {
+                        if current_page.get() == "settings" {
+                            view! {
+                                <span class="absolute left-0 w-[3px] h-5 bg-primary rounded-r-full"></span>
+                            }.into_any()
+                        } else {
+                            view! { <span class="hidden"></span> }.into_any()
+                        }
+                    }}
+                    <span class="material-symbols-outlined text-[20px]">"settings"</span>
+                    <span class="absolute left-full ml-2 px-3 py-1.5 bg-surface-dark border border-border-dark rounded-lg text-xs font-medium text-slate-200 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150 shadow-xl z-[100]">
+                        "設定"
+                    </span>
+                </button>
+            </div>
+        </nav>
     }
 }
 
@@ -199,21 +307,12 @@ fn Header(is_listening: ReadSignal<bool>) -> impl IntoView {
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                <button class="p-2 rounded-lg hover:bg-surface-darker text-slate-400 hover:text-white transition-colors" title="設定">
-                    <span class="material-symbols-outlined">"settings"</span>
-                </button>
                 <div class="relative">
                     <button class="p-2 rounded-lg hover:bg-surface-darker text-slate-400 hover:text-white transition-colors" title="通知">
                         <span class="material-symbols-outlined">"notifications"</span>
                     </button>
                     <span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full ring-2 ring-surface-dark"></span>
                 </div>
-                <div class="h-8 w-px bg-border-dark mx-1"></div>
-                <button class="flex items-center gap-2 pl-2 hover:opacity-80 transition-opacity">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 flex items-center justify-center text-white border border-border-dark">
-                        <span class="text-xs font-bold">"JD"</span>
-                    </div>
-                </button>
             </div>
         </header>
     }
@@ -645,9 +744,9 @@ fn ChatPanel(
                     ></textarea>
                     <button
                         on:click=on_send
-                        class="absolute bottom-1.5 right-1.5 p-1.5 bg-primary hover:bg-primary-hover text-black rounded-lg transition-colors shadow-sm"
+                        class="absolute top-1/2 -translate-y-1/2 right-2 w-8 h-8 flex items-center justify-center bg-primary hover:bg-primary-hover text-black rounded-lg transition-colors shadow-sm"
                     >
-                        <span class="material-symbols-outlined text-lg block transform rotate-[-45deg] relative left-[1px] top-[1px]">"send"</span>
+                        <span class="material-symbols-outlined text-[16px] block transform rotate-[-45deg]">"send"</span>
                     </button>
                 </div>
                 <div class="flex justify-between items-center mt-3">
@@ -663,6 +762,405 @@ fn ChatPanel(
                 </div>
             </div>
         </aside>
+    }
+}
+
+// ─── Analytics Page ──────────────────────────────────────────────────────────
+
+#[component]
+fn AnalyticsPage() -> impl IntoView {
+    view! {
+        <main class="flex-1 flex flex-col p-6 overflow-y-auto min-w-0 bg-background-dark">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold text-white">"分析"</h2>
+                <p class="text-sm text-slate-500 mt-1">"配信パフォーマンスと視聴者データ"</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {[
+                    ("総視聴者数", "0", "group", "accent-blue"),
+                    ("平均視聴時間", "--", "schedule", "accent-purple"),
+                    ("チャットメッセージ", "0", "chat", "primary"),
+                    ("ピーク視聴者", "0", "trending_up", "accent-pink"),
+                ].into_iter().map(|(label, value, icon, color)| {
+                    let icon_cls = format!("material-symbols-outlined text-{} text-xl", color);
+                    let bg_cls = format!("p-2 bg-{}/10 rounded-lg", color);
+                    view! {
+                        <div class="bg-surface-dark border border-border-dark rounded-xl p-5 relative overflow-hidden">
+                            <div class="absolute top-0 right-0 p-4 opacity-50">
+                                <div class=bg_cls>
+                                    <span class=icon_cls>{icon}</span>
+                                </div>
+                            </div>
+                            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{label}</h3>
+                            <span class="text-3xl font-bold text-white font-mono">{value}</span>
+                        </div>
+                    }
+                }).collect_view()}
+            </div>
+
+            <div class="bg-surface-dark border border-border-dark rounded-xl p-8 flex-1 flex items-center justify-center">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-surface-darker rounded-full flex items-center justify-center mx-auto mb-4 border border-border-dark">
+                        <span class="material-symbols-outlined text-3xl text-slate-600">"bar_chart"</span>
+                    </div>
+                    <p class="text-sm text-slate-400 font-medium">"まだデータがありません"</p>
+                    <p class="text-xs text-slate-600 mt-1">"配信を開始するとここに分析データが表示されます"</p>
+                </div>
+            </div>
+        </main>
+    }
+}
+
+// ─── Streaming Page ─────────────────────────────────────────────────────────
+
+#[component]
+fn StreamingPage(
+    #[allow(unused)]
+    set_show_key_modal: WriteSignal<bool>,
+    set_stream_key_info: WriteSignal<Option<StreamKeyResponse>>,
+) -> impl IntoView {
+    // --- State ---
+    let (stream_title, set_stream_title) = signal(String::new());
+    let (stream_description, set_stream_description) = signal(String::new());
+    let (category, set_category) = signal("ゲーム".to_string());
+    let (server_url_display, set_server_url_display) = signal(String::new());
+    let (stream_key_display, set_stream_key_display) = signal(String::new());
+    let (show_key, set_show_key) = signal(false);
+    let (url_copied, set_url_copied) = signal(false);
+    let (key_copied, set_key_copied) = signal(false);
+    let (auto_record, set_auto_record) = signal(false);
+    let (low_latency, set_low_latency) = signal(true);
+
+    // Fetch existing key on mount
+    Effect::new(move |_| {
+        spawn_local(async move {
+            match services::stream_api::get_stream_key().await {
+                Ok(resp) => {
+                    set_server_url_display.set(resp.server_url.clone());
+                    if let Some(ref key) = resp.stream_key {
+                        set_stream_key_display.set(key.clone());
+                    }
+                    set_stream_key_info.set(Some(resp));
+                }
+                Err(_) => {}
+            }
+        });
+    });
+
+    let on_generate_key = move |_: web_sys::MouseEvent| {
+        spawn_local(async move {
+            match services::stream_api::generate_stream_key().await {
+                Ok(resp) => {
+                    set_server_url_display.set(resp.server_url.clone());
+                    if let Some(ref key) = resp.stream_key {
+                        set_stream_key_display.set(key.clone());
+                    }
+                    set_stream_key_info.set(Some(resp));
+                }
+                Err(e) => log::error!("Failed to generate stream key: {}", e),
+            }
+        });
+    };
+
+    let copy_url = move |_: web_sys::MouseEvent| {
+        let url = server_url_display.get();
+        if !url.is_empty() {
+            copy_to_clipboard(&url);
+            set_url_copied.set(true);
+            spawn_local(async move {
+                gloo_timers::future::TimeoutFuture::new(2000).await;
+                set_url_copied.set(false);
+            });
+        }
+    };
+
+    let copy_key = move |_: web_sys::MouseEvent| {
+        let key = stream_key_display.get();
+        if !key.is_empty() {
+            copy_to_clipboard(&key);
+            set_key_copied.set(true);
+            spawn_local(async move {
+                gloo_timers::future::TimeoutFuture::new(2000).await;
+                set_key_copied.set(false);
+            });
+        }
+    };
+
+    let input_cls = "w-full bg-surface-darker text-slate-200 text-sm rounded-lg border border-border-dark focus:border-primary focus:ring-1 focus:ring-primary px-3 py-2.5 transition-all placeholder-slate-600";
+    let select_cls = input_cls;
+
+    view! {
+        <main class="flex-1 flex flex-col p-6 overflow-y-auto min-w-0 bg-background-dark">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold text-white">"配信設定"</h2>
+                <p class="text-sm text-slate-500 mt-1">"配信に関する設定を管理します"</p>
+            </div>
+
+            <div class="space-y-6 max-w-3xl">
+
+                // ── 配信情報 ──
+                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="p-2 bg-primary/10 rounded-lg">
+                            <span class="material-symbols-outlined text-primary">"live_tv"</span>
+                        </div>
+                        <h3 class="font-bold text-white">"配信情報"</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-medium text-slate-400 block mb-1.5">"配信タイトル"</label>
+                            <input
+                                type="text"
+                                class=input_cls
+                                placeholder="配信タイトルを入力..."
+                                prop:value=move || stream_title.get()
+                                on:input=move |e| set_stream_title.set(event_target_value(&e))
+                            />
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-400 block mb-1.5">"配信の説明"</label>
+                            <textarea
+                                class=format!("{} resize-none", input_cls)
+                                rows="3"
+                                placeholder="配信の説明を入力..."
+                                prop:value=move || stream_description.get()
+                                on:input=move |e| set_stream_description.set(event_target_value(&e))
+                            ></textarea>
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium text-slate-400 block mb-1.5">"カテゴリ"</label>
+                            <select
+                                class=select_cls
+                                on:change=move |e| set_category.set(event_target_value(&e))
+                                prop:value=move || category.get()
+                            >
+                                <option value="ゲーム">"ゲーム"</option>
+                                <option value="雑談">"雑談"</option>
+                                <option value="音楽">"音楽"</option>
+                                <option value="お絵描き">"お絵描き"</option>
+                                <option value="プログラミング">"プログラミング"</option>
+                                <option value="その他">"その他"</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                // ── 接続設定（ストリームキー） ──
+                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-accent-blue/10 rounded-lg">
+                                <span class="material-symbols-outlined text-accent-blue">"key"</span>
+                            </div>
+                            <h3 class="font-bold text-white">"接続設定"</h3>
+                        </div>
+                        <button
+                            on:click=on_generate_key
+                            class="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-black text-xs font-bold transition-colors flex items-center gap-1.5"
+                        >
+                            <span class="material-symbols-outlined text-[16px]">"refresh"</span>
+                            {move || if stream_key_display.get().is_empty() { "キーを生成" } else { "再生成" }}
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                        // Server URL
+                        <div>
+                            <label class="text-xs font-medium text-slate-400 block mb-1.5">"サーバーURL"</label>
+                            <div class="flex gap-2">
+                                <div class="flex-1 bg-surface-darker p-3 rounded-lg font-mono text-xs break-all border border-border-dark text-slate-300 select-all min-h-[40px] flex items-center">
+                                    {move || {
+                                        let url = server_url_display.get();
+                                        if url.is_empty() { "未設定".to_string() } else { url }
+                                    }}
+                                </div>
+                                <button
+                                    on:click=copy_url
+                                    class="px-3 rounded-lg border border-border-dark hover:border-primary/50 bg-surface-darker hover:bg-primary/10 text-slate-400 hover:text-primary transition-all flex items-center gap-1.5 shrink-0"
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">
+                                        {move || if url_copied.get() { "check" } else { "content_copy" }}
+                                    </span>
+                                    <span class="text-xs font-medium">
+                                        {move || if url_copied.get() { "コピー済み" } else { "コピー" }}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                        // Stream Key
+                        <div>
+                            <label class="text-xs font-medium text-slate-400 block mb-1.5">"ストリームキー"</label>
+                            <div class="flex gap-2">
+                                <div class="flex-1 bg-surface-darker p-3 rounded-lg font-mono text-xs break-all border border-border-dark text-slate-300 select-all min-h-[40px] flex items-center">
+                                    {move || {
+                                        let key = stream_key_display.get();
+                                        if key.is_empty() {
+                                            "未生成".to_string()
+                                        } else if show_key.get() {
+                                            key
+                                        } else {
+                                            "\u{2022}".repeat(32)
+                                        }
+                                    }}
+                                </div>
+                                <button
+                                    on:click=move |_| set_show_key.update(|v| *v = !*v)
+                                    class="px-2 rounded-lg border border-border-dark hover:border-primary/50 bg-surface-darker hover:bg-primary/10 text-slate-400 hover:text-primary transition-all flex items-center shrink-0"
+                                    title=move || if show_key.get() { "隠す" } else { "表示" }
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">
+                                        {move || if show_key.get() { "visibility_off" } else { "visibility" }}
+                                    </span>
+                                </button>
+                                <button
+                                    on:click=copy_key
+                                    class="px-3 rounded-lg border border-border-dark hover:border-primary/50 bg-surface-darker hover:bg-primary/10 text-slate-400 hover:text-primary transition-all flex items-center gap-1.5 shrink-0"
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">
+                                        {move || if key_copied.get() { "check" } else { "content_copy" }}
+                                    </span>
+                                    <span class="text-xs font-medium">
+                                        {move || if key_copied.get() { "コピー済み" } else { "コピー" }}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bg-surface-darker/50 rounded-lg p-3 border border-border-dark/50">
+                            <p class="text-[11px] text-slate-500 leading-relaxed flex items-start gap-2">
+                                <span class="material-symbols-outlined text-[14px] text-slate-600 mt-0.5 shrink-0">"info"</span>
+                                "OBSの設定 → 配信 → サービス「カスタム」を選択し、上記のサーバーURLとストリームキーを入力してください。"
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                // ── 詳細設定 ──
+                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="p-2 bg-accent-pink/10 rounded-lg">
+                            <span class="material-symbols-outlined text-accent-pink">"tune"</span>
+                        </div>
+                        <h3 class="font-bold text-white">"詳細設定"</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-slate-300">"自動録画"</p>
+                                <p class="text-xs text-slate-600">"配信開始時に自動で録画を開始する"</p>
+                            </div>
+                            <button
+                                on:click=move |_| set_auto_record.update(|v| *v = !*v)
+                                class=move || if auto_record.get() {
+                                    "w-10 h-6 bg-primary/30 rounded-full relative cursor-pointer transition-colors"
+                                } else {
+                                    "w-10 h-6 bg-surface-darker rounded-full relative cursor-pointer border border-border-dark transition-colors"
+                                }
+                            >
+                                <div class=move || if auto_record.get() {
+                                    "absolute top-1 right-1 w-4 h-4 bg-primary rounded-full transition-all"
+                                } else {
+                                    "absolute top-1 left-1 w-4 h-4 bg-slate-600 rounded-full transition-all"
+                                }></div>
+                            </button>
+                        </div>
+                        <div class="w-full h-px bg-border-dark"></div>
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-slate-300">"低遅延モード"</p>
+                                <p class="text-xs text-slate-600">"視聴者との遅延を最小限にする"</p>
+                            </div>
+                            <button
+                                on:click=move |_| set_low_latency.update(|v| *v = !*v)
+                                class=move || if low_latency.get() {
+                                    "w-10 h-6 bg-primary/30 rounded-full relative cursor-pointer transition-colors"
+                                } else {
+                                    "w-10 h-6 bg-surface-darker rounded-full relative cursor-pointer border border-border-dark transition-colors"
+                                }
+                            >
+                                <div class=move || if low_latency.get() {
+                                    "absolute top-1 right-1 w-4 h-4 bg-primary rounded-full transition-all"
+                                } else {
+                                    "absolute top-1 left-1 w-4 h-4 bg-slate-600 rounded-full transition-all"
+                                }></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    }
+}
+
+// ─── Settings Page ──────────────────────────────────────────────────────────
+
+#[component]
+fn SettingsPage() -> impl IntoView {
+    view! {
+        <main class="flex-1 flex flex-col p-6 overflow-y-auto min-w-0 bg-background-dark">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold text-white">"設定"</h2>
+                <p class="text-sm text-slate-500 mt-1">"アプリケーション全般の設定"</p>
+            </div>
+
+            <div class="space-y-4 max-w-2xl">
+                // General
+                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-slate-400 text-[20px]">"tune"</span>
+                        "一般"
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-slate-300">"言語"</p>
+                                <p class="text-xs text-slate-600">"インターフェースの表示言語"</p>
+                            </div>
+                            <span class="text-sm text-slate-400 bg-surface-darker px-3 py-1.5 rounded-lg border border-border-dark font-mono">"日本語"</span>
+                        </div>
+                        <div class="w-full h-px bg-border-dark"></div>
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-slate-300">"テーマ"</p>
+                                <p class="text-xs text-slate-600">"表示テーマの切り替え"</p>
+                            </div>
+                            <span class="text-sm text-slate-400 bg-surface-darker px-3 py-1.5 rounded-lg border border-border-dark font-mono">"ダーク"</span>
+                        </div>
+                    </div>
+                </div>
+
+                // AI Settings
+                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-slate-400 text-[20px]">"smart_toy"</span>
+                        "AI設定"
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-slate-300">"AIチャットボット"</p>
+                                <p class="text-xs text-slate-600">"AI視聴者のチャット応答を有効にする"</p>
+                            </div>
+                            <div class="w-10 h-6 bg-primary/30 rounded-full relative cursor-pointer">
+                                <div class="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                // About
+                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-slate-400 text-[20px]">"info"</span>
+                        "バージョン情報"
+                    </h3>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-slate-400">"AIVID"</span>
+                        <span class="text-xs text-slate-600 font-mono">"v0.1.0"</span>
+                    </div>
+                </div>
+            </div>
+        </main>
     }
 }
 

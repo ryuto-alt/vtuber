@@ -72,6 +72,7 @@ pub fn App() -> impl IntoView {
     let (cam_on, set_cam_on) = signal(true);
     let (volume, set_volume) = signal(0.66f64);
     let (msg_count, set_msg_count) = signal(0usize);
+    let (stream_title, set_stream_title) = signal(String::new());
 
     let start_listening = move || {
         set_is_listening.set(true);
@@ -139,6 +140,7 @@ pub fn App() -> impl IntoView {
                             is_listening=is_listening
                             start_listening=start_listening
                             stop_listening=stop_listening
+                            stream_key_info=stream_key_info
                             set_stream_key_info=set_stream_key_info
                             set_show_key_modal=set_show_key_modal
                             is_muted=is_muted
@@ -150,6 +152,8 @@ pub fn App() -> impl IntoView {
                             volume=volume
                             set_volume=set_volume
                             msg_count=msg_count
+                            stream_title=stream_title
+                            set_stream_title=set_stream_title
                         />
                         <ChatPanel
                             messages=messages
@@ -159,7 +163,7 @@ pub fn App() -> impl IntoView {
                         />
                     }.into_any(),
                     "analytics" => view! { <AnalyticsPage/> }.into_any(),
-                    "streaming" => view! { <StreamingPage set_show_key_modal=set_show_key_modal set_stream_key_info=set_stream_key_info/> }.into_any(),
+                    "streaming" => view! { <StreamingPage set_show_key_modal=set_show_key_modal stream_key_info=stream_key_info set_stream_key_info=set_stream_key_info stream_title=stream_title set_stream_title=set_stream_title/> }.into_any(),
                     "settings" => view! { <SettingsPage/> }.into_any(),
                     _ => view! { <div></div> }.into_any(),
                 }
@@ -325,6 +329,7 @@ fn MainPanel(
     is_listening: ReadSignal<bool>,
     start_listening: impl Fn() + 'static + Copy,
     stop_listening: impl Fn() + 'static + Copy,
+    stream_key_info: ReadSignal<Option<StreamKeyResponse>>,
     set_stream_key_info: WriteSignal<Option<StreamKeyResponse>>,
     set_show_key_modal: WriteSignal<bool>,
     is_muted: ReadSignal<bool>,
@@ -336,6 +341,8 @@ fn MainPanel(
     volume: ReadSignal<f64>,
     set_volume: WriteSignal<f64>,
     msg_count: ReadSignal<usize>,
+    stream_title: ReadSignal<String>,
+    set_stream_title: WriteSignal<String>,
 ) -> impl IntoView {
     view! {
         <main class="flex-1 flex flex-col p-6 overflow-y-auto min-w-0 bg-background-dark">
@@ -349,9 +356,12 @@ fn MainPanel(
                 is_listening=is_listening
                 start_listening=start_listening
                 stop_listening=stop_listening
+                stream_key_info=stream_key_info
                 set_stream_key_info=set_stream_key_info
                 set_show_key_modal=set_show_key_modal
                 cam_on=cam_on set_cam_on=set_cam_on
+                stream_title=stream_title
+                set_stream_title=set_stream_title
             />
             <StatsGrid msg_count=msg_count/>
         </main>
@@ -469,84 +479,118 @@ fn ControlToolbar(
     is_listening: ReadSignal<bool>,
     start_listening: impl Fn() + 'static + Copy,
     stop_listening: impl Fn() + 'static + Copy,
+    stream_key_info: ReadSignal<Option<StreamKeyResponse>>,
     set_stream_key_info: WriteSignal<Option<StreamKeyResponse>>,
     set_show_key_modal: WriteSignal<bool>,
     cam_on: ReadSignal<bool>,
     set_cam_on: WriteSignal<bool>,
+    stream_title: ReadSignal<String>,
+    set_stream_title: WriteSignal<String>,
 ) -> impl IntoView {
-    let on_generate_key = move |_: web_sys::MouseEvent| {
-        spawn_local(async move {
-            match services::stream_api::generate_stream_key().await {
-                Ok(resp) => {
-                    set_stream_key_info.set(Some(resp));
-                    set_show_key_modal.set(true);
+    let (key_copied, set_key_copied) = signal(false);
+
+    let on_open_key_modal = move |_: web_sys::MouseEvent| {
+        if stream_key_info.get().is_none() {
+            spawn_local(async move {
+                match services::stream_api::get_stream_key().await {
+                    Ok(resp) => { set_stream_key_info.set(Some(resp)); }
+                    Err(_) => {}
                 }
-                Err(e) => log::error!("Failed to generate stream key: {}", e),
+            });
+        }
+        set_show_key_modal.set(true);
+    };
+
+    let on_copy_key = move |_: web_sys::MouseEvent| {
+        if let Some(info) = stream_key_info.get() {
+            if let Some(ref key) = info.stream_key {
+                copy_to_clipboard(key);
+                set_key_copied.set(true);
+                spawn_local(async move {
+                    gloo_timers::future::TimeoutFuture::new(2000).await;
+                    set_key_copied.set(false);
+                });
             }
-        });
+        }
     };
 
     let btn = "w-10 h-10 flex items-center justify-center rounded-lg hover:bg-surface-darker text-slate-400 hover:text-white transition-colors border border-transparent hover:border-border-dark";
 
     view! {
-        <div class="mt-4 bg-surface-dark rounded-xl p-3 flex items-center justify-between border border-border-dark shadow-lg">
+        <div class="mt-4 bg-surface-dark rounded-xl p-3 flex flex-col gap-3 border border-border-dark shadow-lg">
+            // Title input row
             <div class="flex items-center gap-2">
-                // Mic
-                <button
-                    on:click=move |_| { if is_listening.get() { stop_listening(); } else { start_listening(); } }
-                    class=move || if is_listening.get() {
-                        "w-10 h-10 flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 transition-colors"
-                    } else { btn }
-                    title="マイクミュート"
-                >
-                    <span class="material-symbols-outlined text-[20px]">
-                        {move || if is_listening.get() { "mic" } else { "mic_off" }}
-                    </span>
-                </button>
-                // Camera
-                <button
-                    on:click=move |_| set_cam_on.update(|v| *v = !*v)
-                    class=btn
-                    title="カメラ"
-                >
-                    <span class="material-symbols-outlined text-[20px]">
-                        {move || if cam_on.get() { "videocam" } else { "videocam_off" }}
-                    </span>
-                </button>
-                <div class="w-px h-6 bg-border-dark mx-2"></div>
-                // Screen share
-                <button class=btn title="画面共有">
-                    <span class="material-symbols-outlined text-[20px]">"screen_share"</span>
-                </button>
-                // Stream key
-                <button on:click=on_generate_key class=btn title="ストリームキー">
-                    <span class="material-symbols-outlined text-[20px]">"key"</span>
-                </button>
-                // Settings
-                <button class=btn title="設定">
-                    <span class="material-symbols-outlined text-[20px]">"tune"</span>
-                </button>
+                <span class="material-symbols-outlined text-slate-500 text-[18px] shrink-0">"title"</span>
+                <input
+                    type="text"
+                    class="flex-1 bg-surface-darker text-slate-200 text-sm rounded-lg border border-border-dark focus:border-primary focus:ring-1 focus:ring-primary px-3 py-2 transition-all placeholder-slate-600"
+                    placeholder="配信タイトルを入力..."
+                    prop:value=move || stream_title.get()
+                    on:input=move |e| set_stream_title.set(event_target_value(&e))
+                />
             </div>
-            <div class="flex items-center gap-4">
-                // Timer
-                <div class="flex items-center gap-3 px-4 py-2 bg-surface-darker rounded-lg border border-border-dark">
-                    <span class="material-symbols-outlined text-slate-500 text-[18px]">"timer"</span>
-                    <span class="font-mono text-slate-300 font-medium tracking-wide">"00:00:00"</span>
+            // Controls row
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    // Mic
+                    <button
+                        on:click=move |_| { if is_listening.get() { stop_listening(); } else { start_listening(); } }
+                        class=move || if is_listening.get() {
+                            "w-10 h-10 flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 transition-colors"
+                        } else { btn }
+                        title="マイクミュート"
+                    >
+                        <span class="material-symbols-outlined text-[20px]">
+                            {move || if is_listening.get() { "mic" } else { "mic_off" }}
+                        </span>
+                    </button>
+                    // Camera
+                    <button
+                        on:click=move |_| set_cam_on.update(|v| *v = !*v)
+                        class=btn
+                        title="カメラ"
+                    >
+                        <span class="material-symbols-outlined text-[20px]">
+                            {move || if cam_on.get() { "videocam" } else { "videocam_off" }}
+                        </span>
+                    </button>
+                    <div class="w-px h-6 bg-border-dark mx-2"></div>
+                    // Stream key
+                    <button on:click=on_open_key_modal class=btn title="ストリームキー">
+                        <span class="material-symbols-outlined text-[20px]">"key"</span>
+                    </button>
+                    // Copy key shortcut
+                    <button
+                        on:click=on_copy_key
+                        class=btn
+                        title="ストリームキーをコピー"
+                    >
+                        <span class="material-symbols-outlined text-[20px]">
+                            {move || if key_copied.get() { "check" } else { "content_copy" }}
+                        </span>
+                    </button>
                 </div>
-                // Start/Stop button
-                <button
-                    on:click=move |_| { if is_listening.get() { stop_listening(); } else { start_listening(); } }
-                    class=move || if is_listening.get() {
-                        "bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:shadow-[0_0_25px_rgba(239,68,68,0.3)] transform hover:-translate-y-0.5"
-                    } else {
-                        "bg-primary hover:bg-primary-hover text-black px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all shadow-glow hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transform hover:-translate-y-0.5"
-                    }
-                >
-                    <span class="material-symbols-outlined icon-fill">
-                        {move || if is_listening.get() { "stop" } else { "play_arrow" }}
-                    </span>
-                    <span>{move || if is_listening.get() { "配信終了" } else { "配信開始" }}</span>
-                </button>
+                <div class="flex items-center gap-4">
+                    // Timer
+                    <div class="flex items-center gap-3 px-4 py-2 bg-surface-darker rounded-lg border border-border-dark">
+                        <span class="material-symbols-outlined text-slate-500 text-[18px]">"timer"</span>
+                        <span class="font-mono text-slate-300 font-medium tracking-wide">"00:00:00"</span>
+                    </div>
+                    // Start/Stop button
+                    <button
+                        on:click=move |_| { if is_listening.get() { stop_listening(); } else { start_listening(); } }
+                        class=move || if is_listening.get() {
+                            "bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:shadow-[0_0_25px_rgba(239,68,68,0.3)] transform hover:-translate-y-0.5"
+                        } else {
+                            "bg-primary hover:bg-primary-hover text-black px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 transition-all shadow-glow hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transform hover:-translate-y-0.5"
+                        }
+                    >
+                        <span class="material-symbols-outlined icon-fill">
+                            {move || if is_listening.get() { "stop" } else { "play_arrow" }}
+                        </span>
+                        <span>{move || if is_listening.get() { "配信終了" } else { "配信開始" }}</span>
+                    </button>
+                </div>
             </div>
         </div>
     }
@@ -818,44 +862,37 @@ fn AnalyticsPage() -> impl IntoView {
 fn StreamingPage(
     #[allow(unused)]
     set_show_key_modal: WriteSignal<bool>,
+    stream_key_info: ReadSignal<Option<StreamKeyResponse>>,
     set_stream_key_info: WriteSignal<Option<StreamKeyResponse>>,
+    stream_title: ReadSignal<String>,
+    set_stream_title: WriteSignal<String>,
 ) -> impl IntoView {
-    // --- State ---
-    let (stream_title, set_stream_title) = signal(String::new());
     let (stream_description, set_stream_description) = signal(String::new());
     let (category, set_category) = signal("ゲーム".to_string());
-    let (server_url_display, set_server_url_display) = signal(String::new());
-    let (stream_key_display, set_stream_key_display) = signal(String::new());
     let (show_key, set_show_key) = signal(false);
     let (url_copied, set_url_copied) = signal(false);
     let (key_copied, set_key_copied) = signal(false);
     let (auto_record, set_auto_record) = signal(false);
     let (low_latency, set_low_latency) = signal(true);
 
-    // Fetch existing key on mount
+    // Fetch existing key on mount (only if not already loaded)
     Effect::new(move |_| {
-        spawn_local(async move {
-            match services::stream_api::get_stream_key().await {
-                Ok(resp) => {
-                    set_server_url_display.set(resp.server_url.clone());
-                    if let Some(ref key) = resp.stream_key {
-                        set_stream_key_display.set(key.clone());
+        if stream_key_info.get().is_none() {
+            spawn_local(async move {
+                match services::stream_api::get_stream_key().await {
+                    Ok(resp) => {
+                        set_stream_key_info.set(Some(resp));
                     }
-                    set_stream_key_info.set(Some(resp));
+                    Err(_) => {}
                 }
-                Err(_) => {}
-            }
-        });
+            });
+        }
     });
 
     let on_generate_key = move |_: web_sys::MouseEvent| {
         spawn_local(async move {
             match services::stream_api::generate_stream_key().await {
                 Ok(resp) => {
-                    set_server_url_display.set(resp.server_url.clone());
-                    if let Some(ref key) = resp.stream_key {
-                        set_stream_key_display.set(key.clone());
-                    }
                     set_stream_key_info.set(Some(resp));
                 }
                 Err(e) => log::error!("Failed to generate stream key: {}", e),
@@ -864,9 +901,8 @@ fn StreamingPage(
     };
 
     let copy_url = move |_: web_sys::MouseEvent| {
-        let url = server_url_display.get();
-        if !url.is_empty() {
-            copy_to_clipboard(&url);
+        if let Some(info) = stream_key_info.get() {
+            copy_to_clipboard(&info.server_url);
             set_url_copied.set(true);
             spawn_local(async move {
                 gloo_timers::future::TimeoutFuture::new(2000).await;
@@ -876,14 +912,15 @@ fn StreamingPage(
     };
 
     let copy_key = move |_: web_sys::MouseEvent| {
-        let key = stream_key_display.get();
-        if !key.is_empty() {
-            copy_to_clipboard(&key);
-            set_key_copied.set(true);
-            spawn_local(async move {
-                gloo_timers::future::TimeoutFuture::new(2000).await;
-                set_key_copied.set(false);
-            });
+        if let Some(info) = stream_key_info.get() {
+            if let Some(ref key) = info.stream_key {
+                copy_to_clipboard(key);
+                set_key_copied.set(true);
+                spawn_local(async move {
+                    gloo_timers::future::TimeoutFuture::new(2000).await;
+                    set_key_copied.set(false);
+                });
+            }
         }
     };
 
@@ -960,7 +997,10 @@ fn StreamingPage(
                             class="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-black text-xs font-bold transition-colors flex items-center gap-1.5"
                         >
                             <span class="material-symbols-outlined text-[16px]">"refresh"</span>
-                            {move || if stream_key_display.get().is_empty() { "キーを生成" } else { "再生成" }}
+                            {move || {
+                                let has_key = stream_key_info.get().and_then(|i| i.stream_key).is_some();
+                                if has_key { "再生成" } else { "キーを生成" }
+                            }}
                         </button>
                     </div>
                     <div class="space-y-4">
@@ -970,8 +1010,10 @@ fn StreamingPage(
                             <div class="flex gap-2">
                                 <div class="flex-1 bg-surface-darker p-3 rounded-lg font-mono text-xs break-all border border-border-dark text-slate-300 select-all min-h-[40px] flex items-center">
                                     {move || {
-                                        let url = server_url_display.get();
-                                        if url.is_empty() { "未設定".to_string() } else { url }
+                                        match stream_key_info.get() {
+                                            Some(info) if !info.server_url.is_empty() => info.server_url.clone(),
+                                            _ => "未設定".to_string(),
+                                        }
                                     }}
                                 </div>
                                 <button
@@ -993,7 +1035,7 @@ fn StreamingPage(
                             <div class="flex gap-2">
                                 <div class="flex-1 bg-surface-darker p-3 rounded-lg font-mono text-xs break-all border border-border-dark text-slate-300 select-all min-h-[40px] flex items-center">
                                     {move || {
-                                        let key = stream_key_display.get();
+                                        let key = stream_key_info.get().and_then(|i| i.stream_key).unwrap_or_default();
                                         if key.is_empty() {
                                             "未生成".to_string()
                                         } else if show_key.get() {

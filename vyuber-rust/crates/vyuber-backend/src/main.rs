@@ -52,6 +52,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .delete(api::stream_key::delete_key)
         )
         .route("/api/chat", post(api::chat::handle_chat))
+        // 音声ファイル送信ルート（既存）
+        .route("/api/transcribe", post(api::deepgram::transcribe))
+        // ▼▼▼ リアルタイム音声認識ルートを追加 ▼▼▼
+        .route("/api/transcribe/live", get(services::deepgram_stream::handler))
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         .route("/api/live/status", get(api::live::stream_status))
         .route("/api/live/whep", post(api::live::whep_proxy))
         .nest_service("/", ServeDir::new(static_path))

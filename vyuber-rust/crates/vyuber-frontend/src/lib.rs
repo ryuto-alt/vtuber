@@ -5,6 +5,8 @@ use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen::prelude::*;
 
 mod services;
+mod mic;       // ▼▼▼ 追加 ▼▼▼
+use mic::Mic;  // ▼▼▼ 追加 ▼▼▼
 
 // JS bindings
 #[wasm_bindgen]
@@ -158,6 +160,9 @@ pub fn App() -> impl IntoView {
             stream_key_info=stream_key_info
             set_stream_key_info=set_stream_key_info
         />
+        
+        // ▼▼▼ マイクボタンを追加！ ▼▼▼
+        <Mic />
     }
 }
 

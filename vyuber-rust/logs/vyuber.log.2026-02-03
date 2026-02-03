@@ -1,0 +1,126 @@
+2026-02-03T00:21:41.600669Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T00:21:41.600963Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T00:21:41.601074Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T00:21:41.601286Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T00:21:42.091157Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(13408))
+2026-02-03T00:21:42.135562Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:21:42 INF MediaMTX v1.15.6
+2026-02-03T00:21:42.135713Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:21:42 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T00:21:42.137189Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:21:42 INF [RTMP] listener opened on :1935
+2026-02-03T00:21:42.147386Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:21:42 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T00:21:42.148093Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:21:42 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T00:21:42.597150Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T00:21:42.598761Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T00:21:42.599350Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T00:21:42.600024Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-03T00:28:04.092632Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T00:28:04.092910Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T00:28:04.092986Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T00:28:04.093144Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T00:28:04.108639Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(424))
+2026-02-03T00:28:04.159233Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:28:04 INF MediaMTX v1.15.6
+2026-02-03T00:28:04.159364Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:28:04 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T00:28:04.160869Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:28:04 INF [RTMP] listener opened on :1935
+2026-02-03T00:28:04.171981Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:28:04 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T00:28:04.172107Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 09:28:04 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T00:28:04.623767Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T00:28:04.624192Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T00:28:04.624348Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T00:28:04.624450Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-03T02:36:19.987643Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T02:36:19.988051Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T02:36:19.988184Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T02:36:19.988359Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T02:36:20.483478Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(17460))
+2026-02-03T02:36:20.529141Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:36:20 INF MediaMTX v1.15.6
+2026-02-03T02:36:20.529408Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:36:20 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T02:36:20.530656Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:36:20 INF [RTMP] listener opened on :1935
+2026-02-03T02:36:20.541296Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:36:20 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T02:36:20.541564Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:36:20 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T02:36:20.999465Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T02:36:21.001139Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T02:36:21.001366Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T02:36:21.001606Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-03T02:38:25.861473Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T02:38:25.861846Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T02:38:25.861944Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T02:38:25.862142Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T02:38:25.913252Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(34100))
+2026-02-03T02:38:25.954463Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:38:25 INF MediaMTX v1.15.6
+2026-02-03T02:38:25.954590Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:38:25 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T02:38:25.956176Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:38:25 INF [RTMP] listener opened on :1935
+2026-02-03T02:38:25.965993Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:38:25 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T02:38:25.966312Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:38:25 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T02:38:26.420557Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T02:38:26.421722Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T02:38:26.422135Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T02:38:26.422411Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-03T02:43:22.310210Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T02:43:22.310444Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T02:43:22.310524Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T02:43:22.310664Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T02:43:22.364539Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(14736))
+2026-02-03T02:43:22.414573Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:43:22 INF MediaMTX v1.15.6
+2026-02-03T02:43:22.414714Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:43:22 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T02:43:22.416048Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:43:22 INF [RTMP] listener opened on :1935
+2026-02-03T02:43:22.426177Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:43:22 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T02:43:22.426337Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:43:22 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T02:43:22.873023Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T02:43:22.873417Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T02:43:22.873502Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T02:43:22.873594Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-03T02:46:19.742152Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T02:46:19.742533Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T02:46:19.742613Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T02:46:19.742782Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T02:46:19.757954Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(27180))
+2026-02-03T02:46:19.803160Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:46:19 INF MediaMTX v1.15.6
+2026-02-03T02:46:19.803295Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:46:19 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T02:46:19.804622Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:46:19 INF [RTMP] listener opened on :1935
+2026-02-03T02:46:19.814864Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:46:19 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T02:46:19.815167Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 11:46:19 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T02:46:20.261672Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T02:46:20.262298Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T02:46:20.262403Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T02:46:20.262501Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-03T06:07:38.902514Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T06:07:38.902828Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T06:07:38.903061Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T06:07:38.903240Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T06:07:39.655311Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(34532))
+2026-02-03T06:07:39.705020Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 15:07:39 INF MediaMTX v1.15.6
+2026-02-03T06:07:39.705215Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 15:07:39 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T06:07:39.706686Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 15:07:39 INF [RTMP] listener opened on :1935
+2026-02-03T06:07:39.715739Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 15:07:39 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T06:07:39.715936Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 15:07:39 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T06:07:40.157816Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T06:07:40.158452Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T06:07:40.158540Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T06:07:40.158620Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-03T07:05:03.334606Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T07:05:03.334980Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T07:05:03.335070Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T07:05:03.335265Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T07:05:04.232221Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(34340))
+2026-02-03T07:05:04.274984Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 16:05:04 INF MediaMTX v1.15.6
+2026-02-03T07:05:04.275101Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 16:05:04 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T07:05:04.276378Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 16:05:04 INF [RTMP] listener opened on :1935
+2026-02-03T07:05:04.285767Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 16:05:04 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T07:05:04.285887Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 16:05:04 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T07:05:04.746292Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T07:05:04.747202Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T07:05:04.747338Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T07:05:04.747454Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-03T10:07:46.257459Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-03T10:07:46.258028Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-03T10:07:46.258130Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-03T10:07:46.258423Z  INFO vyuber_backend::mediamtx: [MediaMTX] Starting process...
+2026-02-03T10:07:46.748444Z  INFO vyuber_backend::mediamtx: [MediaMTX] Process started (pid: Some(33800))
+2026-02-03T10:07:46.793553Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 19:07:46 INF MediaMTX v1.15.6
+2026-02-03T10:07:46.793886Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 19:07:46 INF configuration loaded from C:\vtuber\vyuber-rust\mediamtx\vyuber-mediamtx.yml
+2026-02-03T10:07:46.795175Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 19:07:46 INF [RTMP] listener opened on :1935
+2026-02-03T10:07:46.804539Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 19:07:46 INF [WebRTC] listener opened on :8889 (HTTP), :8189 (ICE/UDP), :8190 (ICE/TCP)
+2026-02-03T10:07:46.804774Z  INFO vyuber_backend::mediamtx: [MediaMTX] 2026/02/03 19:07:46 INF [API] listener opened on 127.0.0.1:9997
+2026-02-03T10:07:47.262591Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-03T10:07:47.262816Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-03T10:07:47.262875Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-03T10:07:47.262935Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}

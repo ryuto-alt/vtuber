@@ -9,18 +9,25 @@ path = "src/main.rs"
 
 [dependencies]
 # Web Framework
-axum = "0.7"
+axum = { version = "0.7", features = ["multipart", "ws"] }
 tower-http = { version = "0.5", features = ["fs", "cors"] }
 tokio = { workspace = true }
 
-# RTMP (placeholder for MVP - sheave not available on crates.io)
-# Full RTMP implementation will be added in production
+# WebSocket & Async Utilities
+futures = "0.3"
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+# ▼▼▼ これらを追加！ ▼▼▼
+url = "2.5"
+http = "1.1"
+# ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+# RTMP (placeholder)
 tokio-util = { version = "0.7", features = ["io"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 bytes = "1.5"
 futures-util = "0.3"
 
-# HTTP Client (Gemini API)
+# HTTP Client
 reqwest = { version = "0.12", features = ["json"] }
 
 # Serialization

@@ -5,6 +5,8 @@ use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen::prelude::*;
 
 mod services;
+mod mic;       // ▼▼▼ 追加 ▼▼▼
+use mic::Mic;  // ▼▼▼ 追加 ▼▼▼
 
 // JS bindings
 #[wasm_bindgen]
@@ -183,6 +185,9 @@ pub fn App() -> impl IntoView {
             set_show=set_show_profile_menu
             set_current_page=set_current_page
         />
+
+        // ▼▼▼ マイクボタンを追加！ ▼▼▼
+        <Mic />
     }
 }
 

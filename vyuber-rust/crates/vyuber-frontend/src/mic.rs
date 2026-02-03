@@ -4,7 +4,8 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{BlobEvent, MediaRecorder, MediaRecorderOptions, WebSocket, MessageEvent};
 use serde::{Deserialize, Serialize};
-use log::{error, info}; // infoを追加
+use log::{error, info};
+use crate::state::{GlobalState, ChatUser}; // stateを使う
 
 #[derive(Serialize, Deserialize, Debug)]
 struct DeepgramResponse {
@@ -24,8 +25,11 @@ struct Alternative {
 
 #[component]
 pub fn Mic() -> impl IntoView {
+    // ステートを取得
+    let state = use_context::<GlobalState>().expect("GlobalState not found");
+
     let (is_recording, set_recording) = signal(false);
-    let (transcript, set_transcript) = signal("".to_string());
+    let (send_to_chat, set_send_to_chat) = signal(true); // ★チャット送信ON/OFF
     
     let recorder_ref = StoredValue::new_local(None::<MediaRecorder>);
     let ws_ref = StoredValue::new_local(None::<WebSocket>);
@@ -52,7 +56,6 @@ pub fn Mic() -> impl IntoView {
         if is_recording.get() {
             cleanup();
         } else {
-            set_transcript.set("準備中...".to_string());
             set_recording.set(true);
 
             spawn_local(async move {
@@ -60,7 +63,7 @@ pub fn Mic() -> impl IntoView {
                 let navigator = window.navigator();
                 let media_devices = navigator.media_devices().expect("MediaDevices not found");
 
-                // 1. まずマイクの権限を取得（ここが先！）
+                // 1. マイク権限
                 let constraints = web_sys::MediaStreamConstraints::new();
                 constraints.set_audio(&JsValue::from(true));
 
@@ -68,47 +71,37 @@ pub fn Mic() -> impl IntoView {
                     Ok(promise) => {
                         let stream_js = wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
                         let media_stream = stream_js.dyn_into::<web_sys::MediaStream>().unwrap();
-                        
-                        // マイクOKなら、レコーダー作成
                         let options = MediaRecorderOptions::new();
-                        // options.set_mime_type("audio/webm"); // 自動判定
-                        let recorder = match MediaRecorder::new_with_media_stream_and_media_recorder_options(&media_stream, &options) {
-                            Ok(r) => r,
-                            Err(e) => {
-                                error!("Recorder creation failed: {:?}", e);
-                                set_transcript.set("レコーダーエラー".to_string());
-                                set_recording.set(false);
-                                return;
-                            }
-                        };
+                        let recorder = MediaRecorder::new_with_media_stream_and_media_recorder_options(&media_stream, &options).unwrap();
 
-                        // 2. 次にWebSocketに接続
+                        // 2. WebSocket
                         let protocol = if window.location().protocol().unwrap() == "https:" { "wss:" } else { "ws:" };
                         let host = window.location().host().unwrap();
                         let ws_url = format!("{}//{}/api/transcribe/live", protocol, host);
                         
-                        web_sys::console::log_1(&"Connecting to WebSocket...".into());
-
                         let ws = match WebSocket::new(&ws_url) {
                             Ok(ws) => ws,
                             Err(e) => {
-                                error!("WebSocket connection failed: {:?}", e);
-                                set_transcript.set("接続エラー".to_string());
+                                error!("WebSocket error: {:?}", e);
                                 set_recording.set(false);
                                 return;
                             }
                         };
                         ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
 
-                        // メッセージ受信（文字起こし結果）
+                        // メッセージ受信
                         let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
                             if let Ok(text) = e.data().dyn_into::<js_sys::JsString>() {
                                 let text_string: String = text.into();
                                 if let Ok(response) = serde_json::from_str::<DeepgramResponse>(&text_string) {
-                                    if let Some(alt) = response.channel.alternatives.first() {
-                                        let content = &alt.transcript;
-                                        if !content.is_empty() {
-                                            set_transcript.set(content.clone());
+                                    // ★ is_final: true（文章が確定した）時だけ処理する
+                                    if response.is_final {
+                                        if let Some(alt) = response.channel.alternatives.first() {
+                                            let content = alt.transcript.trim();
+                                            // スイッチがONで、かつ空文字じゃなければ送信
+                                            if send_to_chat.get() && !content.is_empty() {
+                                                state.add_message(ChatUser::Me, content.to_string());
+                                            }
                                         }
                                     }
                                 }
@@ -117,7 +110,6 @@ pub fn Mic() -> impl IntoView {
                         ws.set_onmessage(Some(on_message.as_ref().unchecked_ref()));
                         on_message.forget();
 
-                        // 音声データ送信
                         let ws_clone = ws.clone();
                         let on_data = Closure::wrap(Box::new(move |e: BlobEvent| {
                             if let Some(blob) = e.data() {
@@ -129,12 +121,8 @@ pub fn Mic() -> impl IntoView {
                         recorder.set_ondataavailable(Some(on_data.as_ref().unchecked_ref()));
                         on_data.forget();
 
-                        // 3. 接続完了イベント（ここで確実にstartする）
                         let recorder_clone = recorder.clone();
                         let on_open = Closure::wrap(Box::new(move || {
-                            web_sys::console::log_1(&"WebSocket Open! Starting Recorder...".into());
-                            set_transcript.set("聞いています...".to_string());
-                            // 250msごとにスライスして送信
                             recorder_clone.start_with_time_slice(250).unwrap();
                         }) as Box<dyn FnMut()>);
                         ws.set_onopen(Some(on_open.as_ref().unchecked_ref()));
@@ -144,7 +132,6 @@ pub fn Mic() -> impl IntoView {
                         recorder_ref.set_value(Some(recorder));
                     },
                     Err(_) => {
-                        set_transcript.set("マイク許可エラー".to_string());
                         set_recording.set(false);
                     }
                 }
@@ -152,16 +139,36 @@ pub fn Mic() -> impl IntoView {
         }
     };
 
+    // UI部分：左下の表示を削除し、ON/OFFトグルを追加
     view! {
-        <div style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; font-family: sans-serif;">
+        <div style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: flex; align_items: center; gap: 10px;">
+            // 録音ボタン
             <button 
                 on:click=toggle_recording
                 style="background: #ff4444; color: white; border: none; padding: 12px 24px; border-radius: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size: 16px;">
-                {move || if is_recording.get() { "■ リアルタイム停止" } else { "🎤 リアルタイム入力" }}
+                {move || if is_recording.get() { "■ 停止" } else { "🎤 音声入力" }}
             </button>
-            <div style="margin-top: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 8px; max-width: 300px; min-height: 20px;">
-                "認識: " <span style="color: #44ff44; font-weight: bold;">{transcript}</span>
-            </div>
+
+            // チャット送信スイッチ (録音中のみ表示)
+            {move || is_recording.get().then(|| view! {
+                <div style="background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; color: white; display: flex; align_items: center; gap: 8px;">
+                    <label for="chat-toggle" style="font-size: 14px; cursor: pointer;">チャット反映</label>
+                    <input 
+                        type="checkbox" 
+                        id="chat-toggle"
+                        prop:checked=send_to_chat
+                        on:change=move |e| set_send_to_chat.set(event_target_checked(&e))
+                        style="cursor: pointer;"
+                    />
+                </div>
+            })}
+            
+            // デバッグ用：AIコメント追加ボタン
+            <button 
+                on:click=move |_| state.add_demo_ai_comment()
+                style="background: #4444ff; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                "🤖 AIコメント追加(Demo)"
+            </button>
         </div>
     }
 }

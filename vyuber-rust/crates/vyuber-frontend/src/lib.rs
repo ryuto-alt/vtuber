@@ -1,12 +1,14 @@
 use leptos::prelude::*;
-use vyuber_shared::chat::ChatMessage;
 use vyuber_shared::stream::StreamKeyResponse;
 use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen::prelude::*;
 
 mod services;
-mod mic;       // ▼▼▼ 追加 ▼▼▼
-use mic::Mic;  // ▼▼▼ 追加 ▼▼▼
+mod mic;
+mod state; // ★追加: stateモジュールを読み込む
+
+use mic::Mic;
+use state::{GlobalState, ChatUser, ChatMessage}; // ★追加: 共有ステートを使う
 
 // JS bindings
 #[wasm_bindgen]
@@ -63,8 +65,12 @@ pub fn main() {
 
 #[component]
 pub fn App() -> impl IntoView {
+    // ★追加: GlobalStateを初期化して配布
+    let state = GlobalState::new();
+    provide_context(state);
+
     let (current_page, set_current_page) = signal("dashboard");
-    let (messages, set_messages) = signal(Vec::<ChatMessage>::new());
+    // messagesは state.messages を使うのでローカル変数は削除
     let (is_listening, set_is_listening) = signal(false);
     let (stream_key_info, set_stream_key_info) = signal(None::<StreamKeyResponse>);
     let (show_key_modal, set_show_key_modal) = signal(false);
@@ -84,47 +90,31 @@ pub fn App() -> impl IntoView {
         set_is_listening.set(false);
     };
 
+    // チャット送信処理（手動入力）
     let send_chat = move |text: String| {
         if text.trim().is_empty() { return; }
-        set_messages.update(|msgs| {
-            msgs.push(ChatMessage {
-                id: js_sys::Date::now() as i64,
-                user: "You".to_string(),
-                text: text.clone(),
-                color: "text-white".to_string(),
-            });
-        });
+        
+        // ★修正: GlobalStateに追加
+        state.add_message(ChatUser::Me, text.clone());
         set_msg_count.update(|c| *c += 1);
 
+        // API送信（バックエンドAIからの返信処理）
         Effect::new(move |_| {
             let text = text.clone();
-            let set_messages = set_messages.clone();
             spawn_local(async move {
                 match services::chat_api::send_message(&text).await {
                     Ok(comments) => {
                         for (i, comment) in comments.into_iter().enumerate() {
+                            // 少し遅延させて自然な感じに
                             gloo_timers::future::TimeoutFuture::new((500 + i * 400) as u32).await;
                             set_msg_count.update(|c| *c += 1);
-                            set_messages.update(|msgs| {
-                                msgs.push(ChatMessage {
-                                    id: js_sys::Date::now() as i64,
-                                    user: comment.user,
-                                    text: comment.text,
-                                    color: comment.color,
-                                });
-                            });
+                            // ★修正: APIからの返信をGlobalStateに追加
+                            state.add_message(ChatUser::Ai(comment.user), comment.text);
                         }
                     }
                     Err(e) => {
                         log::error!("Chat API error: {}", e);
-                        set_messages.update(|msgs| {
-                            msgs.push(ChatMessage {
-                                id: js_sys::Date::now() as i64,
-                                user: "System".to_string(),
-                                text: "APIエラーが発生しました".to_string(),
-                                color: "text-red-500".to_string(),
-                            });
-                        });
+                        state.add_message(ChatUser::Ai("System".to_string()), "APIエラーが発生しました".to_string());
                     }
                 }
             });
@@ -159,7 +149,7 @@ pub fn App() -> impl IntoView {
                             set_stream_title=set_stream_title
                         />
                         <ChatPanel
-                            messages=messages
+                            messages=state.messages // ★修正: GlobalStateのメッセージを渡す
                             chat_input=chat_input
                             set_chat_input=set_chat_input
                             send_chat=send_chat
@@ -185,8 +175,8 @@ pub fn App() -> impl IntoView {
             set_show=set_show_profile_menu
             set_current_page=set_current_page
         />
-
-        // ▼▼▼ マイクボタンを追加！ ▼▼▼
+        
+        // ★マイクコンポーネント（チャット送信スイッチ付き）
         <Mic />
     }
 }
@@ -718,6 +708,18 @@ fn ChatPanel(
         }
     };
 
+    // チャットが更新されたら一番下にスクロールする
+    let chat_ref = NodeRef::<leptos::html::Div>::new();
+    Effect::new(move |_| {
+        messages.track();
+        if let Some(el) = chat_ref.get() {
+            spawn_local(async move {
+                gloo_timers::future::TimeoutFuture::new(50).await;
+                el.set_scroll_top(el.scroll_height());
+            });
+        }
+    });
+
     view! {
         <aside class="w-80 border-l border-border-dark bg-surface-dark flex flex-col flex-shrink-0 z-10 shadow-xl">
             // Header
@@ -732,7 +734,7 @@ fn ChatPanel(
             </div>
 
             // Messages
-            <div class="flex-1 overflow-y-auto p-4 min-h-0">
+            <div node_ref=chat_ref class="flex-1 overflow-y-auto p-4 min-h-0 scroll-smooth">
                 {move || {
                     let msgs = messages.get();
                     if msgs.is_empty() {
@@ -748,36 +750,45 @@ fn ChatPanel(
                     } else {
                         view! {
                             <div class="space-y-3">
-                                {msgs.iter().enumerate().map(|(i, msg)| {
-                                    let user = msg.user.clone();
-                                    let text = msg.text.clone();
-                                    let is_self = user == "You" || user == "Me";
-                                    let palettes = [
-                                        ("from-blue-500 to-cyan-400", "text-blue-400", "smart_toy", "shadow-blue-500/20"),
-                                        ("from-purple-500 to-pink-500", "text-purple-400", "psychology", "shadow-purple-500/20"),
-                                        ("from-orange-500 to-yellow-500", "text-orange-400", "rocket_launch", "shadow-orange-500/20"),
-                                        ("from-emerald-500 to-teal-500", "text-emerald-400", "memory", "shadow-emerald-500/20"),
-                                        ("from-red-500 to-pink-600", "text-red-400", "search", "shadow-red-500/20"),
-                                        ("from-indigo-500 to-blue-600", "text-indigo-400", "school", "shadow-indigo-500/20"),
-                                    ];
-                                    let idx = if is_self { 0 } else { i % palettes.len() };
-                                    let (grad, name_color, icon, shadow) = palettes[idx];
+                                // ★修正: into_iter() で所有権を移動
+                                {msgs.into_iter().enumerate().map(|(i, msg)| {
+                                    // ★修正: msgを分解して所有権を取り出す（これで参照エラー回避！）
+                                    let ChatMessage { user, text, .. } = msg;
 
-                                    let avatar_cls = format!(
-                                        "size-7 rounded-md bg-gradient-to-br {} flex items-center justify-center shrink-0 shadow-sm {}",
-                                        grad, shadow
-                                    );
-                                    let name_cls = format!("{} font-semibold text-xs", if is_self { "text-white" } else { name_color });
+                                    // ★修正: すべて String (実体) として扱う
+                                    let (user_name, is_self, _name_color, icon) = match user {
+                                        ChatUser::Me => ("You".to_string(), true, "text-white", "person"),
+                                        ChatUser::Ai(name) => (name, false, "", "smart_toy"), // nameはここで移動される
+                                    };
+
+                                    let palettes = [
+                                        ("from-blue-500 to-cyan-400", "text-blue-400", "shadow-blue-500/20"),
+                                        ("from-purple-500 to-pink-500", "text-purple-400", "shadow-purple-500/20"),
+                                        ("from-orange-500 to-yellow-500", "text-orange-400", "shadow-orange-500/20"),
+                                        ("from-emerald-500 to-teal-500", "text-emerald-400", "shadow-emerald-500/20"),
+                                    ];
+                                    
+                                    let p_idx = i % palettes.len();
+                                    let (grad, ai_name_col, shadow) = palettes[p_idx];
+
+                                    let avatar_cls = if is_self {
+                                        "size-7 rounded-md bg-gradient-to-br from-slate-600 to-slate-500 flex items-center justify-center shrink-0 shadow-sm".to_string()
+                                    } else {
+                                        format!("size-7 rounded-md bg-gradient-to-br {} flex items-center justify-center shrink-0 shadow-sm {}", grad, shadow)
+                                    };
+
+                                    let name_cls = format!("{} font-semibold text-xs", if is_self { "text-white" } else { ai_name_col });
 
                                     view! {
                                         <div class="flex gap-2.5">
                                             <div class=avatar_cls>
                                                 <span class="material-symbols-outlined text-white text-[14px]">
-                                                    {if is_self { "person" } else { icon }}
+                                                    {icon}
                                                 </span>
                                             </div>
                                             <div class="flex flex-col min-w-0">
-                                                <span class=name_cls>{user}</span>
+                                                <span class=name_cls>{user_name}</span>
+                                                // ★修正: text (String) をそのまま表示
                                                 <p class="text-slate-300 text-xs leading-relaxed mt-0.5 break-words">{text}</p>
                                             </div>
                                         </div>
@@ -811,9 +822,6 @@ fn ChatPanel(
                     <div class="flex gap-1">
                         <button class="p-1.5 rounded text-slate-500 hover:text-primary hover:bg-surface-darker transition-colors" title="絵文字">
                             <span class="material-symbols-outlined text-[18px]">"sentiment_satisfied"</span>
-                        </button>
-                        <button class="p-1.5 rounded text-slate-500 hover:text-primary hover:bg-surface-darker transition-colors" title="メンション">
-                            <span class="material-symbols-outlined text-[18px]">"alternate_email"</span>
                         </button>
                     </div>
                     <span class="text-[10px] text-slate-600 font-mono">"ENTERで送信"</span>

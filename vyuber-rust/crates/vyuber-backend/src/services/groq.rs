@@ -66,73 +66,68 @@ impl GroqClient {
         tracing::info!("[Chat API] Generating comments for message: {}", message);
 
         // Few-shot examples for high accuracy responses
-        let prompt = format!(r#"あなたはYouTubeライブ配信の視聴者コメントを生成するAIです。
-配信者の発言に対して、自然で関連性のある視聴者コメントを5件生成してください。
+        let prompt = format!(r#"YouTubeライブ配信の視聴者コメントを5件生成。
 
-【ルール】
-1. 配信者の発言内容に必ず関連したコメントを生成する
-2. 質問には答える、報告には反応する、挨拶には挨拶を返す
-3. 短く自然なコメント（1〜15文字程度）
-4. バリエーション豊かに（同じような返答を避ける）
+【絶対ルール】
+- 日本語（ひらがな・カタカナ・漢字）のみ使用。簡体字・繁体字は禁止
+- 配信者が質問したら必ず質問に答える（はい/いいえ、する/しない等）
+- 短いコメント（1〜12文字）
 
-【Few-shot Examples】
+【Examples】
 
 Input: 「こんばんはー！」
 Output: {{"comments":[
 {{"user":"たける","text":"こんばんは！","color":"text-blue-400"}},
-{{"user":"ゆき@配信好き","text":"待ってた！","color":"text-green-400"}},
-{{"user":"初見です","text":"初見です！","color":"text-purple-400"}},
+{{"user":"ゆき","text":"待ってた！","color":"text-green-400"}},
+{{"user":"初見","text":"初見です！","color":"text-purple-400"}},
 {{"user":"ねこまる","text":"ばんちゃ！","color":"text-orange-400"}},
-{{"user":"さくら","text":"今日も来たよ〜","color":"text-pink-400"}}
+{{"user":"さくら","text":"きたー！","color":"text-pink-400"}}
 ]}}
 
 Input: 「みんな元気してた？」
 Output: {{"comments":[
 {{"user":"けんた","text":"元気だよ！","color":"text-blue-400"}},
-{{"user":"まりこ","text":"ぼちぼちかな","color":"text-green-400"}},
-{{"user":"ゲーマー太郎","text":"絶好調！","color":"text-purple-400"}},
-{{"user":"しょうた","text":"まあまあ〜","color":"text-orange-400"}},
-{{"user":"みく","text":"元気元気！そっちは？","color":"text-pink-400"}}
+{{"user":"まりこ","text":"ぼちぼち","color":"text-green-400"}},
+{{"user":"たろう","text":"絶好調！","color":"text-purple-400"}},
+{{"user":"しょうた","text":"まあまあ","color":"text-orange-400"}},
+{{"user":"みく","text":"元気！","color":"text-pink-400"}}
 ]}}
 
-Input: 「今日カレー食べたんだよね」
+Input: 「起業しないの？」
 Output: {{"comments":[
-{{"user":"りょう","text":"いいな〜","color":"text-blue-400"}},
-{{"user":"カレー好き","text":"何カレー？","color":"text-green-400"}},
-{{"user":"ともや","text":"俺も食べたい","color":"text-purple-400"}},
-{{"user":"あやか","text":"手作り？","color":"text-orange-400"}},
-{{"user":"たくみ","text":"辛口派？甘口派？","color":"text-pink-400"}}
+{{"user":"けんじ","text":"しないかな","color":"text-blue-400"}},
+{{"user":"あきら","text":"興味ある！","color":"text-green-400"}},
+{{"user":"社会人","text":"いつかしたい","color":"text-purple-400"}},
+{{"user":"たくや","text":"リスク怖い","color":"text-orange-400"}},
+{{"user":"ゆうき","text":"するつもり！","color":"text-pink-400"}}
 ]}}
 
-Input: 「今日仕事疲れた〜」
+Input: 「ゲームやる人いる？」
 Output: {{"comments":[
-{{"user":"しんじ","text":"おつかれ！","color":"text-blue-400"}},
-{{"user":"OL子","text":"わかる…","color":"text-green-400"}},
-{{"user":"だいき","text":"ゆっくり休んで","color":"text-purple-400"}},
-{{"user":"はるな","text":"配信で癒されて","color":"text-orange-400"}},
-{{"user":"こうへい","text":"何があったの？","color":"text-pink-400"}}
+{{"user":"ゲーマー","text":"やるよ！","color":"text-blue-400"}},
+{{"user":"かずき","text":"毎日やる","color":"text-green-400"}},
+{{"user":"みさき","text":"たまにやる","color":"text-purple-400"}},
+{{"user":"りょう","text":"最近やってない","color":"text-orange-400"}},
+{{"user":"はると","text":"やりたい！","color":"text-pink-400"}}
 ]}}
 
-Input: 「今日はマイクラやるよ！」
+Input: 「彼女いる人？」
 Output: {{"comments":[
-{{"user":"マイクラ勢","text":"きたー！","color":"text-blue-400"}},
-{{"user":"ゆうと","text":"待ってました！","color":"text-green-400"}},
-{{"user":"建築好き","text":"何作るの？","color":"text-purple-400"}},
-{{"user":"れん","text":"サバイバル？","color":"text-orange-400"}},
-{{"user":"あおい","text":"楽しみ！","color":"text-pink-400"}}
+{{"user":"たけし","text":"いるよ！","color":"text-blue-400"}},
+{{"user":"ぼっち","text":"いない…","color":"text-green-400"}},
+{{"user":"りく","text":"募集中","color":"text-purple-400"}},
+{{"user":"かい","text":"いません","color":"text-orange-400"}},
+{{"user":"そうた","text":"秘密","color":"text-pink-400"}}
 ]}}
 
-Input: 「最近寝不足なんだよね」
+Input: 「今日カレー食べた」
 Output: {{"comments":[
-{{"user":"けい","text":"大丈夫？","color":"text-blue-400"}},
-{{"user":"夜更かし民","text":"わかりみ","color":"text-green-400"}},
-{{"user":"みさき","text":"ちゃんと寝て！","color":"text-purple-400"}},
-{{"user":"そうた","text":"何時に寝てる？","color":"text-orange-400"}},
-{{"user":"なつみ","text":"体調気をつけてね","color":"text-pink-400"}}
+{{"user":"りょう","text":"いいな","color":"text-blue-400"}},
+{{"user":"あや","text":"何カレー？","color":"text-green-400"}},
+{{"user":"ともや","text":"食べたい","color":"text-purple-400"}},
+{{"user":"けい","text":"手作り？","color":"text-orange-400"}},
+{{"user":"なな","text":"辛口？","color":"text-pink-400"}}
 ]}}
-
----
-Now generate comments for this input:
 
 Input: 「{0}」
 Output:"#, message);
@@ -142,7 +137,7 @@ Output:"#, message);
             messages: vec![
                 Message {
                     role: "system".to_string(),
-                    content: "あなたはJSON生成専用AIです。例に従って、配信者の発言に関連したコメントのみを生成してください。無関係な定型文は禁止。Output:の後にJSONのみ出力。".to_string(),
+                    content: "JSON生成AI。日本語のみ使用（簡体字禁止）。質問には必ず答える形で回答。例に従いJSONのみ出力。".to_string(),
                 },
                 Message {
                     role: "user".to_string(),

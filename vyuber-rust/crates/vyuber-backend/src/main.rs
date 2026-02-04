@@ -15,6 +15,8 @@ mod services;
 mod streaming;
 mod mediamtx;
 
+use api::chat::ChatHistory;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ログをファイルとコンソール両方に出力
@@ -39,11 +41,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // StreamManagerを初期化
     let stream_manager = streaming::StreamManager::new();
+    // 会話履歴を初期化
+    let chat_history = ChatHistory::new();
 
     let static_path = std::env::var("STATIC_DIR")
         .unwrap_or_else(|_| "crates/vyuber-backend/static".to_string());
 
     tracing::info!("Serving static files from: {}", static_path);
+
+    // チャット用のルーター（ChatHistoryをStateとして使用）
+    let chat_router = Router::new()
+        .route("/api/chat", post(api::chat::handle_chat))
+        .with_state(chat_history);
 
     let app = Router::new()
         .route("/api/stream-key",
@@ -51,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .post(api::stream_key::generate_key)
             .delete(api::stream_key::delete_key)
         )
-        .route("/api/chat", post(api::chat::handle_chat))
+        .merge(chat_router)
         // 音声ファイル送信ルート（既存）
         .route("/api/transcribe", post(api::deepgram::transcribe))
         // ▼▼▼ リアルタイム音声認識ルートを追加 ▼▼▼

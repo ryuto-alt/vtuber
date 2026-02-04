@@ -62,82 +62,43 @@ impl GroqClient {
         }
     }
 
-    pub async fn generate_comments(&self, message: &str) -> Result<Vec<ChatComment>> {
+    /// 会話履歴付きでコメントを生成
+    pub async fn generate_comments_with_history(&self, message: &str, history: &[String]) -> Result<Vec<ChatComment>> {
         tracing::info!("[Chat API] Generating comments for message: {}", message);
+        tracing::info!("[Chat API] Using {} history messages", history.len());
 
-        // Few-shot examples for high accuracy responses
+        // 会話履歴を構築
+        let history_text = if history.is_empty() {
+            String::new()
+        } else {
+            let history_lines: Vec<String> = history.iter()
+                .enumerate()
+                .map(|(i, msg)| format!("{}. 「{}」", i + 1, msg))
+                .collect();
+            format!("【配信者の過去の発言】\n{}\n\n", history_lines.join("\n"))
+        };
+
         let prompt = format!(r#"YouTubeライブ配信の視聴者コメントを5件生成。
 
 【絶対ルール】
-- 日本語（ひらがな・カタカナ・漢字）のみ使用。簡体字・繁体字は禁止
-- 配信者が質問したら必ず質問に答える（はい/いいえ、する/しない等）
-- 短いコメント（1〜12文字）
+- 日本語（ひらがな・カタカナ・漢字）のみ使用。簡体字禁止
+- 配信者の質問には必ず答える
+- 過去の発言を踏まえて文脈に合った返答をする
+- 金額を聞かれたら具体的な金額で答える
+- 短いコメント（1〜15文字）
 
-【Examples】
+{history_text}【配信者の最新発言】「{message}」
 
-Input: 「こんばんはー！」
-Output: {{"comments":[
-{{"user":"たける","text":"こんばんは！","color":"text-blue-400"}},
-{{"user":"ゆき","text":"待ってた！","color":"text-green-400"}},
-{{"user":"初見","text":"初見です！","color":"text-purple-400"}},
-{{"user":"ねこまる","text":"ばんちゃ！","color":"text-orange-400"}},
-{{"user":"さくら","text":"きたー！","color":"text-pink-400"}}
-]}}
+上記の最新発言に対するコメントを生成。過去の発言があれば文脈を考慮すること。
 
-Input: 「みんな元気してた？」
-Output: {{"comments":[
-{{"user":"けんた","text":"元気だよ！","color":"text-blue-400"}},
-{{"user":"まりこ","text":"ぼちぼち","color":"text-green-400"}},
-{{"user":"たろう","text":"絶好調！","color":"text-purple-400"}},
-{{"user":"しょうた","text":"まあまあ","color":"text-orange-400"}},
-{{"user":"みく","text":"元気！","color":"text-pink-400"}}
-]}}
-
-Input: 「起業しないの？」
-Output: {{"comments":[
-{{"user":"けんじ","text":"しないかな","color":"text-blue-400"}},
-{{"user":"あきら","text":"興味ある！","color":"text-green-400"}},
-{{"user":"社会人","text":"いつかしたい","color":"text-purple-400"}},
-{{"user":"たくや","text":"リスク怖い","color":"text-orange-400"}},
-{{"user":"ゆうき","text":"するつもり！","color":"text-pink-400"}}
-]}}
-
-Input: 「ゲームやる人いる？」
-Output: {{"comments":[
-{{"user":"ゲーマー","text":"やるよ！","color":"text-blue-400"}},
-{{"user":"かずき","text":"毎日やる","color":"text-green-400"}},
-{{"user":"みさき","text":"たまにやる","color":"text-purple-400"}},
-{{"user":"りょう","text":"最近やってない","color":"text-orange-400"}},
-{{"user":"はると","text":"やりたい！","color":"text-pink-400"}}
-]}}
-
-Input: 「彼女いる人？」
-Output: {{"comments":[
-{{"user":"たけし","text":"いるよ！","color":"text-blue-400"}},
-{{"user":"ぼっち","text":"いない…","color":"text-green-400"}},
-{{"user":"りく","text":"募集中","color":"text-purple-400"}},
-{{"user":"かい","text":"いません","color":"text-orange-400"}},
-{{"user":"そうた","text":"秘密","color":"text-pink-400"}}
-]}}
-
-Input: 「今日カレー食べた」
-Output: {{"comments":[
-{{"user":"りょう","text":"いいな","color":"text-blue-400"}},
-{{"user":"あや","text":"何カレー？","color":"text-green-400"}},
-{{"user":"ともや","text":"食べたい","color":"text-purple-400"}},
-{{"user":"けい","text":"手作り？","color":"text-orange-400"}},
-{{"user":"なな","text":"辛口？","color":"text-pink-400"}}
-]}}
-
-Input: 「{0}」
-Output:"#, message);
+Output:"#, history_text = history_text, message = message);
 
         let request_body = GroqRequest {
             model: "llama-3.3-70b-versatile".to_string(),
             messages: vec![
                 Message {
                     role: "system".to_string(),
-                    content: "JSON生成AI。日本語のみ使用（簡体字禁止）。質問には必ず答える形で回答。例に従いJSONのみ出力。".to_string(),
+                    content: "YouTube配信の視聴者コメント生成AI。日本語のみ。配信者の過去の発言を踏まえて文脈に合った返答をする。金額の質問には「10万円」「20万」など具体的に。JSON形式で出力: {\"comments\":[{\"user\":\"名前\",\"text\":\"コメント\",\"color\":\"text-blue-400\"}]}".to_string(),
                 },
                 Message {
                     role: "user".to_string(),

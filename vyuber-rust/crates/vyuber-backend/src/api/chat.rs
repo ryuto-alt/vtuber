@@ -4,34 +4,43 @@ use vyuber_shared::chat::ChatComment;
 use crate::services::groq::GroqClient;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use std::collections::VecDeque;
 
-/// 会話履歴を保持する構造体（直近5件の配信者発言）
+/// 1ターンの会話（配信者の発言 + 視聴者のコメント）
+#[derive(Clone)]
+pub struct ConversationTurn {
+    pub streamer_message: String,
+    pub viewer_comments: Vec<ChatComment>,
+}
+
+/// 会話履歴を保持する構造体（直近3ターン）
 #[derive(Clone, Default)]
 pub struct ChatHistory {
-    pub messages: Arc<Mutex<VecDeque<String>>>,
+    pub turns: Arc<Mutex<Vec<ConversationTurn>>>,
 }
 
 impl ChatHistory {
     pub fn new() -> Self {
         Self {
-            messages: Arc::new(Mutex::new(VecDeque::with_capacity(5))),
+            turns: Arc::new(Mutex::new(Vec::with_capacity(3))),
         }
     }
 
-    /// 新しいメッセージを追加（最大5件保持）
-    pub async fn add_message(&self, message: String) {
-        let mut messages = self.messages.lock().await;
-        if messages.len() >= 5 {
-            messages.pop_front();
+    /// 新しいターンを追加（最大3件保持）
+    pub async fn add_turn(&self, streamer_message: String, viewer_comments: Vec<ChatComment>) {
+        let mut turns = self.turns.lock().await;
+        if turns.len() >= 3 {
+            turns.remove(0);
         }
-        messages.push_back(message);
+        turns.push(ConversationTurn {
+            streamer_message,
+            viewer_comments,
+        });
     }
 
-    /// 履歴を取得
-    pub async fn get_history(&self) -> Vec<String> {
-        let messages = self.messages.lock().await;
-        messages.iter().cloned().collect()
+    /// 直前のターンの視聴者コメントを取得
+    pub async fn get_last_comments(&self) -> Option<Vec<ChatComment>> {
+        let turns = self.turns.lock().await;
+        turns.last().map(|t| t.viewer_comments.clone())
     }
 }
 
@@ -58,18 +67,18 @@ pub async fn handle_chat(
 ) -> Result<Json<ChatResponse>, (StatusCode, Json<ErrorResponse>)> {
     tracing::info!("[Chat API] Received message: {}", req.message);
 
-    // 過去の会話履歴を取得
-    let past_messages = history.get_history().await;
-    tracing::info!("[Chat API] History count: {}", past_messages.len());
+    // 前のターンの視聴者コメントを取得
+    let last_comments = history.get_last_comments().await;
+    tracing::info!("[Chat API] Has previous comments: {}", last_comments.is_some());
 
     // Groq APIクライアントを作成
     let client = GroqClient::from_env();
 
-    // コメントを生成（履歴付き）
-    match client.generate_comments_with_history(&req.message, &past_messages).await {
+    // コメントを生成（前のコメント付き）
+    match client.generate_comments_with_context(&req.message, last_comments.as_deref()).await {
         Ok(comments) => {
-            // 成功したら履歴に追加
-            history.add_message(req.message).await;
+            // 成功したら履歴に追加（配信者の発言と視聴者コメント）
+            history.add_turn(req.message, comments.clone()).await;
             tracing::info!("[Chat API] Successfully generated {} comments", comments.len());
             Ok(Json(ChatResponse { comments }))
         }

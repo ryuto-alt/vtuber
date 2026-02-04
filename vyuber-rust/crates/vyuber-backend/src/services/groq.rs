@@ -62,62 +62,57 @@ impl GroqClient {
         }
     }
 
-    /// 会話履歴付きでコメントを生成
-    pub async fn generate_comments_with_history(&self, message: &str, _history: &[String]) -> Result<Vec<ChatComment>> {
+    /// 文脈付きでコメントを生成（前のコメントへのフォローアップあり）
+    pub async fn generate_comments_with_context(&self, message: &str, last_comments: Option<&[ChatComment]>) -> Result<Vec<ChatComment>> {
         tracing::info!("[Chat API] Generating comments for message: {}", message);
 
-        let prompt = format!(r#"配信者「{message}」に対する視聴者コメント5件をJSON生成。
+        // 前のコメントがあれば、質問した人をピックアップ
+        let context = if let Some(comments) = last_comments {
+            let questions: Vec<String> = comments.iter()
+                .filter(|c| c.text.contains('？') || c.text.contains('?'))
+                .map(|c| format!("{}「{}」", c.user, c.text))
+                .collect();
+            if !questions.is_empty() {
+                format!("\n【前のターンで質問した視聴者】\n{}\n→ 配信者が答えたので、この人たちは「ありがとう」「なるほど」等のリアクションをする\n", questions.join("\n"))
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        let prompt = format!(r#"YouTube配信の視聴者コメント5件を生成。
+{context}
+【配信者の発言】「{message}」
+
+【コメントの種類を混ぜる】
+- 共感・反応（「わかる」「それな」「草」）
+- 質問（「何時まで？」「どこで？」）
+- 自分の話（「俺も〇〇した」「私は〇〇派」）
+- リアクション（「まじか」「えー」「おお！」）
+- ボケ・ネタ（面白いツッコミ）
 
 【ルール】
-- userは日本人の名前（例：たける、ゆき、けんた）
-- textは配信者への自然な返答（3〜10文字）
-- 5人それぞれ違う反応をする
-- 配信者の発言の意味を理解して答える
+- userは日本人名（たける、ゆき、けんた、みさき等）
+- textは5〜20文字くらいの自然な文
+- 5人それぞれ違うタイプのコメント
+- 配信者の発言をちゃんと理解して返答
 
-【例1】配信者「電車遅延えぐかった」
+【出力形式】
 {{"comments":[
-{{"user":"たける","text":"まじか","color":"text-blue-400"}},
-{{"user":"ゆうき","text":"何分遅れた？","color":"text-green-400"}},
-{{"user":"みさき","text":"大変だったね","color":"text-purple-400"}},
-{{"user":"けんた","text":"俺も遅刻した","color":"text-orange-400"}},
-{{"user":"あやか","text":"おつかれ！","color":"text-pink-400"}}
-]}}
-
-【例2】配信者「お腹すいた」
-{{"comments":[
-{{"user":"そうた","text":"俺も","color":"text-blue-400"}},
-{{"user":"りな","text":"何食べる？","color":"text-green-400"}},
-{{"user":"たくみ","text":"ラーメン行こ","color":"text-purple-400"}},
-{{"user":"ゆい","text":"カップ麺ある？","color":"text-orange-400"}},
-{{"user":"はると","text":"食べよ食べよ！","color":"text-pink-400"}}
-]}}
-
-【例3】配信者「〇〇ってやばくね？w」
-{{"comments":[
-{{"user":"けい","text":"草","color":"text-blue-400"}},
-{{"user":"まさき","text":"それなw","color":"text-green-400"}},
-{{"user":"あおい","text":"わかるw","color":"text-purple-400"}},
-{{"user":"りく","text":"まじでやばい","color":"text-orange-400"}},
-{{"user":"ゆな","text":"wwwww","color":"text-pink-400"}}
-]}}
-
-【例4】配信者「下ネタや暴言」
-{{"comments":[
-{{"user":"たろう","text":"おいw","color":"text-blue-400"}},
-{{"user":"けんじ","text":"草","color":"text-green-400"}},
-{{"user":"みく","text":"やめろw","color":"text-purple-400"}},
-{{"user":"そうた","text":"配信終わるぞ","color":"text-orange-400"}},
-{{"user":"りさ","text":"BANされるw","color":"text-pink-400"}}
-]}}
-
-配信者「{message}」"#, message = message);
+{{"user":"名前","text":"コメント内容","color":"text-blue-400"}},
+{{"user":"名前","text":"コメント内容","color":"text-green-400"}},
+{{"user":"名前","text":"コメント内容","color":"text-purple-400"}},
+{{"user":"名前","text":"コメント内容","color":"text-orange-400"}},
+{{"user":"名前","text":"コメント内容","color":"text-pink-400"}}
+]}}"#, context = context, message = message);
 
         let request_body = GroqRequest {
             model: "llama-3.3-70b-versatile".to_string(),
             messages: vec![
                 Message {
                     role: "system".to_string(),
-                    content: "YouTube配信の視聴者コメントをJSON生成。userは日本人名（たける、ゆき等）、textは短い自然な返答。".to_string(),
+                    content: "YouTube配信の視聴者コメント生成AI。自然な日本語で、5人それぞれ違うタイプのコメントを生成。質問、共感、自分の話、リアクション、ボケを混ぜる。".to_string(),
                 },
                 Message {
                     role: "user".to_string(),

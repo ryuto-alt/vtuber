@@ -138,7 +138,7 @@ Input: 「{0}」
 Output:"#, message);
 
         let request_body = GroqRequest {
-            model: "llama-3.1-8b-instant".to_string(),
+            model: "llama-3.3-70b-versatile".to_string(),
             messages: vec![
                 Message {
                     role: "system".to_string(),

@@ -67,7 +67,7 @@ impl GroqClient {
         tracing::info!("[Chat API] Generating comments for message: {}", message);
         tracing::info!("[Chat API] Using {} history messages", history.len());
 
-        // 会話履歴を構築
+        // 会話履歴を構築（最新の発言と関連がありそうな場合のみ使用）
         let history_text = if history.is_empty() {
             String::new()
         } else {
@@ -75,21 +75,28 @@ impl GroqClient {
                 .enumerate()
                 .map(|(i, msg)| format!("{}. 「{}」", i + 1, msg))
                 .collect();
-            format!("【配信者の過去の発言】\n{}\n\n", history_lines.join("\n"))
+            format!("【参考：過去の発言】（最新発言と無関係なら無視してOK）\n{}\n\n", history_lines.join("\n"))
         };
 
-        let prompt = format!(r#"YouTubeライブ配信の視聴者コメントを5件生成。
+        let prompt = format!(r#"YouTubeライブ配信の視聴者コメント5件を生成。
 
 【絶対ルール】
-- 日本語（ひらがな・カタカナ・漢字）のみ使用。簡体字禁止
-- 配信者の質問には必ず答える
-- 過去の発言を踏まえて文脈に合った返答をする
-- 金額を聞かれたら具体的な金額で答える
-- 短いコメント（1〜15文字）
+1. 最新発言にのみ反応する。話題が変わったら過去の発言は忘れる
+2. 5人全員が違う意見・反応をする（賛成、反対、質問、ボケ、共感など）
+3. 同じ単語や商品名を繰り返さない
+4. 日本語のみ（簡体字禁止）
+5. 短いコメント（3〜12文字）
+
+【5人の性格】
+1人目(blue): 素直に反応する普通の人
+2人目(green): ちょっと詳しい常連
+3人目(purple): 初心者や質問する人
+4人目(orange): ボケたりネタを言う人
+5人目(pink): テンション高めの人
 
 {history_text}【配信者の最新発言】「{message}」
 
-上記の最新発言に対するコメントを生成。過去の発言があれば文脈を考慮すること。
+この最新発言だけに反応。5人それぞれ違う視点で。
 
 Output:"#, history_text = history_text, message = message);
 
@@ -98,7 +105,7 @@ Output:"#, history_text = history_text, message = message);
             messages: vec![
                 Message {
                     role: "system".to_string(),
-                    content: "YouTube配信の視聴者コメント生成AI。日本語のみ。配信者の過去の発言を踏まえて文脈に合った返答をする。金額の質問には「10万円」「20万」など具体的に。JSON形式で出力: {\"comments\":[{\"user\":\"名前\",\"text\":\"コメント\",\"color\":\"text-blue-400\"}]}".to_string(),
+                    content: "視聴者コメント生成AI。5人それぞれ違う性格・意見で回答。同じ言葉の繰り返し禁止。話題が変わったら過去は忘れる。JSON出力: {\"comments\":[{\"user\":\"名前\",\"text\":\"コメント\",\"color\":\"text-blue-400\"}]}".to_string(),
                 },
                 Message {
                     role: "user".to_string(),

@@ -66,17 +66,44 @@ impl GroqClient {
     pub async fn generate_comments_with_context(&self, message: &str, last_comments: Option<&[ChatComment]>) -> Result<Vec<ChatComment>> {
         tracing::info!("[Chat API] Generating comments for message: {}", message);
 
-        // 前のコメントがあれば、質問した人をピックアップ
+        // 前のコメントがあれば、視聴者情報を構築
         let context = if let Some(comments) = last_comments {
-            let questions: Vec<String> = comments.iter()
-                .filter(|c| c.text.contains('？') || c.text.contains('?'))
+            let mut context_parts = Vec::new();
+
+            // 前のターンの視聴者リスト
+            let users: Vec<String> = comments.iter()
                 .map(|c| format!("{}「{}」", c.user, c.text))
                 .collect();
-            if !questions.is_empty() {
-                format!("\n【前のターンで質問した視聴者】\n{}\n→ 配信者が答えたので、この人たちは「ありがとう」「なるほど」等のリアクションをする\n", questions.join("\n"))
-            } else {
-                String::new()
+            context_parts.push(format!("【前のターンの視聴者コメント】\n{}", users.join("\n")));
+
+            // 配信者が誰かの名前を呼んでいるかチェック
+            let mentioned_users: Vec<&ChatComment> = comments.iter()
+                .filter(|c| message.contains(&c.user))
+                .collect();
+
+            if !mentioned_users.is_empty() {
+                let names: Vec<String> = mentioned_users.iter()
+                    .map(|c| c.user.clone())
+                    .collect();
+                context_parts.push(format!(
+                    "\n【重要】配信者が「{}」に話しかけています。この人は必ず返答してください。1人目のコメントにしてください。",
+                    names.join("、")
+                ));
             }
+
+            // 質問した人
+            let questions: Vec<String> = comments.iter()
+                .filter(|c| c.text.contains('？') || c.text.contains('?'))
+                .map(|c| c.user.clone())
+                .collect();
+            if !questions.is_empty() && mentioned_users.is_empty() {
+                context_parts.push(format!(
+                    "\n【質問した視聴者】{}\n→ 配信者が答えたので、この人たちは「ありがとう」「なるほど」等のリアクションをする可能性あり",
+                    questions.join("、")
+                ));
+            }
+
+            context_parts.join("\n")
         } else {
             String::new()
         };
@@ -96,6 +123,8 @@ impl GroqClient {
 - userは日本人名（たける、ゆき、けんた、みさき、りょう等）
 - 配信者の発言をちゃんと理解して、その話題に沿った返答をする
 - 長文の人は本当に長く書く（短くしない）
+- 配信者が誰かの名前を呼んでいたら、その人が必ず1人目で返答する
+- 前のターンにいた視聴者は同じ名前で再登場してもOK
 
 【出力例】配信者「彼女彼氏おる人どんくらいいる？」
 {{"comments":[

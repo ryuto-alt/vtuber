@@ -3,6 +3,10 @@ name = "vyuber-backend"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "vyuber_backend"
+path = "src/lib.rs"
+
 [[bin]]
 name = "vyuber-backend"
 path = "src/main.rs"

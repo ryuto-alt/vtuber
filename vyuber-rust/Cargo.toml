@@ -3,6 +3,7 @@ members = [
     "crates/vyuber-backend",
     "crates/vyuber-frontend",
     "crates/vyuber-shared",
+    "crates/vyuber-desktop",
 ]
 resolver = "2"
 

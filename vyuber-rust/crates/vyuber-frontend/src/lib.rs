@@ -1156,10 +1156,81 @@ fn StreamingPage(
     }
 }
 
-// ─── Settings Page ──────────────────────────────────────────────────────────
+// ─── Settings Page (修正版) ──────────────────────────────────────────────────
 
 #[component]
 fn SettingsPage() -> impl IntoView {
+    let (mic_status, set_mic_status) = signal("未確認".to_string());
+    let (status_color, set_status_color) = signal("text-slate-500");
+    let (error_detail, set_error_detail) = signal(String::new());
+
+    // マイクテスト実行
+    let check_mic = move |_| {
+        set_mic_status.set("確認中...".to_string());
+        set_status_color.set("text-yellow-400");
+        set_error_detail.set(String::new());
+
+        spawn_local(async move {
+            let window = web_sys::window().unwrap();
+            let navigator = window.navigator();
+            
+            let media_devices = match navigator.media_devices() {
+                Ok(md) => md,
+                Err(_) => {
+                    set_mic_status.set("APIエラー".to_string());
+                    set_status_color.set("text-red-400");
+                    return;
+                }
+            };
+
+            let constraints = web_sys::MediaStreamConstraints::new();
+            constraints.set_audio(&wasm_bindgen::JsValue::from(true));
+
+            match media_devices.get_user_media_with_constraints(&constraints) {
+                Ok(promise) => {
+                    match wasm_bindgen_futures::JsFuture::from(promise).await {
+                        Ok(stream) => {
+                            let media_stream = stream.unchecked_into::<web_sys::MediaStream>();
+                            let tracks = media_stream.get_audio_tracks();
+                            if tracks.length() == 0 {
+                                set_mic_status.set("マイクが見つかりません".to_string());
+                                set_status_color.set("text-red-400");
+                            } else {
+                                let track = tracks.get(0).unchecked_into::<web_sys::MediaStreamTrack>();
+                                if track.muted() {
+                                    set_mic_status.set("ミュート/無効状態 ⚠️".to_string());
+                                    set_status_color.set("text-orange-400");
+                                } else {
+                                    set_mic_status.set(format!("接続OK ✅ ({})", track.label()));
+                                    set_status_color.set("text-green-400");
+                                }
+                                track.stop();
+                            }
+                        },
+                        Err(e) => {
+                            let err_obj = e.unchecked_into::<web_sys::DomException>();
+                            set_mic_status.set("アクセス拒否 🚫".to_string());
+                            set_status_color.set("text-red-400");
+                            set_error_detail.set(format!("Error: {}", err_obj.name()));
+                        }
+                    }
+                }
+                Err(_) => {
+                    set_mic_status.set("接続失敗".to_string());
+                    set_status_color.set("text-red-400");
+                }
+            }
+        });
+    };
+
+    // ★追加機能: Windowsの設定画面を開く魔法のボタン
+    let open_windows_settings = move |_| {
+        if let Some(window) = web_sys::window() {
+            // "ms-settings:privacy-microphone" はWindowsの設定画面を開くURIスキームです
+            let _ = window.open_with_url_and_target("ms-settings:privacy-microphone", "_self");
+        }
+    };
+
     view! {
         <main class="flex-1 flex flex-col p-6 overflow-y-auto min-w-0 bg-background-dark">
             <div class="mb-6">
@@ -1168,6 +1239,77 @@ fn SettingsPage() -> impl IntoView {
             </div>
 
             <div class="space-y-4 max-w-2xl">
+                // ── マイク設定 ──
+                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-slate-400 text-[20px]">"mic"</span>
+                        "オーディオ設定"
+                    </h3>
+                    <div class="space-y-4">
+                        // テストボタンエリア
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-slate-300">"マイク接続テスト"</p>
+                                <div class="text-xs text-slate-600 mt-1">
+                                    "ステータス: " 
+                                    <span class=move || format!("font-bold {}", status_color.get())>
+                                        {move || mic_status.get()}
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                on:click=check_mic
+                                class="px-4 py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg text-sm font-bold transition-colors border border-primary/20"
+                            >
+                                "テスト実行"
+                            </button>
+                        </div>
+
+                        // ⚠️ トラブルシューティング表示エリア（エラー時のみ出現）
+                        {move || {
+                            let status = mic_status.get();
+                            // エラーっぽい単語が含まれていたらヘルプを出す
+                            if status.contains("拒否") || status.contains("ブロック") || status.contains("ミュート") || status.contains("失敗") {
+                                view! {
+                                    <div class="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mt-2 animated fadeIn flex flex-col gap-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-red-400">"help"</span>
+                                            <p class="text-sm text-red-300 font-bold">"マイクが使えない場合"</p>
+                                        </div>
+                                        
+                                        // 解決策1: Windows設定（一番簡単）
+                                        <div class="bg-surface-darker/50 p-3 rounded border border-white/5">
+                                            <p class="text-xs text-white font-bold mb-1">"① Windowsの許可設定を確認"</p>
+                                            <p class="text-xs text-slate-400 mb-2">"OS側でマイクがブロックされている可能性があります。"</p>
+                                            <button 
+                                                on:click=open_windows_settings
+                                                class="w-full py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded border border-slate-500 transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <span class="material-symbols-outlined text-[14px]">"settings"</span>
+                                                "Windowsのマイク設定を開く"
+                                            </button>
+                                        </div>
+
+                                        // 解決策2: アプリ設定リセット（最終手段）
+                                        <div class="bg-surface-darker/50 p-3 rounded border border-white/5">
+                                            <p class="text-xs text-white font-bold mb-1">"② アプリ設定のリセット"</p>
+                                            <p class="text-xs text-slate-400 mb-2">"以前に「拒否」を選んでしまった場合はこちら。"</p>
+                                            <ol class="list-decimal list-inside text-[10px] text-slate-400 space-y-0.5 ml-1 font-mono">
+                                                <li>"[Win] + [R]キーを押す"</li>
+                                                <li>"「%localappdata%」を入力してEnter"</li>
+                                                <li>"「vyuber-frontend」フォルダ内の「EBWebView」を削除"</li>
+                                                <li>"アプリを再起動"</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                }.into_any()
+                            } else {
+                                view! { <div class="hidden"></div> }.into_any()
+                            }
+                        }}
+                    </div>
+                </div>
+
                 // General
                 <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
                     <h3 class="font-bold text-white mb-4 flex items-center gap-2">
@@ -1182,45 +1324,6 @@ fn SettingsPage() -> impl IntoView {
                             </div>
                             <span class="text-sm text-slate-400 bg-surface-darker px-3 py-1.5 rounded-lg border border-border-dark font-mono">"日本語"</span>
                         </div>
-                        <div class="w-full h-px bg-border-dark"></div>
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <p class="text-sm text-slate-300">"テーマ"</p>
-                                <p class="text-xs text-slate-600">"表示テーマの切り替え"</p>
-                            </div>
-                            <span class="text-sm text-slate-400 bg-surface-darker px-3 py-1.5 rounded-lg border border-border-dark font-mono">"ダーク"</span>
-                        </div>
-                    </div>
-                </div>
-
-                // AI Settings
-                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
-                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-slate-400 text-[20px]">"smart_toy"</span>
-                        "AI設定"
-                    </h3>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <p class="text-sm text-slate-300">"AIチャットボット"</p>
-                                <p class="text-xs text-slate-600">"AI視聴者のチャット応答を有効にする"</p>
-                            </div>
-                            <div class="w-10 h-6 bg-primary/30 rounded-full relative cursor-pointer">
-                                <div class="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                // About
-                <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
-                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
-                        <span class="material-symbols-outlined text-slate-400 text-[20px]">"info"</span>
-                        "バージョン情報"
-                    </h3>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-slate-400">"AIVID"</span>
-                        <span class="text-xs text-slate-600 font-mono">"v0.1.0"</span>
                     </div>
                 </div>
             </div>

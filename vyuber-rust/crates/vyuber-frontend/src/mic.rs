@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{BlobEvent, MediaRecorder, MediaRecorderOptions, WebSocket, MessageEvent};
 use serde::{Deserialize, Serialize};
-use log::{error, info};
+use log::error;
 use crate::state::{GlobalState, ChatUser}; // stateを使う
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -140,16 +140,16 @@ pub fn Mic() -> impl IntoView {
     };
 
     // UI部分：左下の表示を削除し、ON/OFFトグルを追加
+    // mic.rs の view! 部分
+
     view! {
-        <div style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: flex; align_items: center; gap: 10px;">
-            // 録音ボタン
+        <div style="position: fixed; bottom: 20px; left: 100px; z-index: 9999; display: flex; align_items: center; gap: 10px;">
             <button 
                 on:click=toggle_recording
                 style="background: #ff4444; color: white; border: none; padding: 12px 24px; border-radius: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size: 16px;">
                 {move || if is_recording.get() { "■ 停止" } else { "🎤 音声入力" }}
             </button>
 
-            // チャット送信スイッチ (録音中のみ表示)
             {move || is_recording.get().then(|| view! {
                 <div style="background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; color: white; display: flex; align_items: center; gap: 8px;">
                     <label for="chat-toggle" style="font-size: 14px; cursor: pointer;">チャット反映</label>
@@ -162,13 +162,7 @@ pub fn Mic() -> impl IntoView {
                     />
                 </div>
             })}
-            
-            // デバッグ用：AIコメント追加ボタン
-            <button 
-                on:click=move |_| state.add_demo_ai_comment()
-                style="background: #4444ff; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; cursor: pointer;">
-                "🤖 AIコメント追加(Demo)"
-            </button>
+            // ★ここにデモボタンがありましたが、削除しました
         </div>
     }
 }

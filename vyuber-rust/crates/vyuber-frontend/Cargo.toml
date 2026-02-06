@@ -26,6 +26,8 @@ web-sys = { version = "0.3", features = [
     "SpeechRecognition",
     "MediaStream",
     "MediaStreamConstraints",
+    "MediaStreamTrack",      # ★追加
+    "DomException",          # ★追加
     "MediaRecorder",
     "MediaRecorderOptions",
     "RecordingState",

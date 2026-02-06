@@ -2,6 +2,8 @@
 
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
+mod commands;
+
 fn main() {
     // ログをファイルとコンソール両方に出力
     let log_dir = std::env::var("LOG_DIR").unwrap_or_else(|_| "logs".to_string());
@@ -17,6 +19,10 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::rename_recording,
+            commands::list_recordings,
+        ])
         .setup(|_app| {
             // ポート3000が既に使用中かチェック（開発モードでは既に起動済み）
             let port_in_use = std::net::TcpStream::connect("127.0.0.1:3000").is_ok();

@@ -77,17 +77,83 @@ pub fn App() -> impl IntoView {
     let (chat_input, set_chat_input) = signal(String::new());
     let (is_muted, set_is_muted) = signal(true);
     let (is_paused, set_is_paused) = signal(false);
-    let (cam_on, set_cam_on) = signal(true);
     let (volume, set_volume) = signal(0.66f64);
     let (msg_count, set_msg_count) = signal(0usize);
     let (stream_title, set_stream_title) = signal(String::new());
     let (show_profile_menu, set_show_profile_menu) = signal(false);
+    let (elapsed_seconds, set_elapsed_seconds) = signal(0u32);
+    let (is_recording, set_is_recording) = signal(false);
+    let (auto_record, _set_auto_record) = signal(false);
 
     let start_listening = move || {
         set_is_listening.set(true);
+        set_elapsed_seconds.set(0); // タイマーリセット
+
+        // 自動録画が有効な場合、録画を開始
+        if auto_record.get() {
+            if let Some(key_info) = stream_key_info.get() {
+                if let Some(key) = key_info.stream_key {
+                    spawn_local(async move {
+                        match services::recording_api::start_recording(&key).await {
+                            Ok(_) => {
+                                log::info!("Recording started");
+                                set_is_recording.set(true);
+                            }
+                            Err(e) => log::error!("Failed to start recording: {}", e),
+                        }
+                    });
+                }
+            }
+        }
     };
     let stop_listening = move || {
+        let duration = elapsed_seconds.get();
+        let title = stream_title.get();
+        let msg_cnt = msg_count.get();
+        let ai_count = state.unique_ai_users.get().len();
+        let recording = is_recording.get();
+
         set_is_listening.set(false);
+
+        // 録画停止
+        if recording {
+            if let Some(key_info) = stream_key_info.get() {
+                if let Some(key) = key_info.stream_key {
+                    spawn_local(async move {
+                        match services::recording_api::stop_recording(&key).await {
+                            Ok(_) => {
+                                log::info!("Recording stopped");
+                                set_is_recording.set(false);
+                            }
+                            Err(e) => log::error!("Failed to stop recording: {}", e),
+                        }
+                    });
+                }
+            }
+        }
+
+        // メタデータ保存
+        spawn_local(async move {
+            use chrono::prelude::*;
+            let now = Utc::now();
+            let session_id = uuid::Uuid::new_v4().to_string();
+
+            let metadata = vyuber_shared::analytics::StreamMetadata {
+                session_id,
+                title: if title.is_empty() { "無題の配信".to_string() } else { title },
+                started_at: (now - chrono::Duration::seconds(duration as i64)).to_rfc3339(),
+                ended_at: now.to_rfc3339(),
+                duration_seconds: duration,
+                total_messages: msg_cnt,
+                ai_viewer_count: ai_count,
+                recording_path: None,
+            };
+
+            match services::analytics_api::save_metadata(metadata).await {
+                Ok(_) => log::info!("Stream metadata saved successfully"),
+                Err(e) => log::error!("Failed to save metadata: {}", e),
+            }
+        });
     };
 
     // チャット送信処理（手動入力）
@@ -121,6 +187,24 @@ pub fn App() -> impl IntoView {
         });
     };
 
+    // タイマーカウントアップ
+    Effect::new(move |_| {
+        if is_listening.get() {
+            let interval_id = set_interval(
+                move || {
+                    if is_listening.get() {
+                        set_elapsed_seconds.update(|s| *s += 1);
+                    }
+                },
+                std::time::Duration::from_secs(1),
+            );
+            // クリーンアップはLeptosが自動的に処理
+            interval_id
+        } else {
+            set_interval(|| {}, std::time::Duration::from_secs(3600)) // ダミー
+        }
+    });
+
     view! {
         <Header is_listening=is_listening/>
         <div class="flex flex-1 overflow-hidden min-h-0">
@@ -140,13 +224,12 @@ pub fn App() -> impl IntoView {
                             set_is_muted=set_is_muted
                             is_paused=is_paused
                             set_is_paused=set_is_paused
-                            cam_on=cam_on
-                            set_cam_on=set_cam_on
                             volume=volume
                             set_volume=set_volume
                             msg_count=msg_count
                             stream_title=stream_title
                             set_stream_title=set_stream_title
+                            elapsed_seconds=elapsed_seconds
                         />
                         <ChatPanel
                             messages=state.messages // ★修正: GlobalStateのメッセージを渡す
@@ -340,14 +423,15 @@ fn MainPanel(
     set_is_muted: WriteSignal<bool>,
     is_paused: ReadSignal<bool>,
     set_is_paused: WriteSignal<bool>,
-    cam_on: ReadSignal<bool>,
-    set_cam_on: WriteSignal<bool>,
     volume: ReadSignal<f64>,
     set_volume: WriteSignal<f64>,
     msg_count: ReadSignal<usize>,
     stream_title: ReadSignal<String>,
     set_stream_title: WriteSignal<String>,
+    elapsed_seconds: ReadSignal<u32>,
 ) -> impl IntoView {
+    let state = expect_context::<GlobalState>();
+
     view! {
         <main class="flex-1 flex flex-col p-6 overflow-y-auto min-w-0 bg-background-dark">
             <VideoPreview
@@ -363,11 +447,15 @@ fn MainPanel(
                 stream_key_info=stream_key_info
                 set_stream_key_info=set_stream_key_info
                 set_show_key_modal=set_show_key_modal
-                cam_on=cam_on set_cam_on=set_cam_on
                 stream_title=stream_title
                 set_stream_title=set_stream_title
+                elapsed_seconds=elapsed_seconds
             />
-            <StatsGrid msg_count=msg_count/>
+            <StatsGrid
+                msg_count=msg_count
+                ai_viewer_count=Signal::derive(move || state.unique_ai_users.get().len())
+                elapsed_seconds=elapsed_seconds
+            />
         </main>
     }
 }
@@ -486,10 +574,9 @@ fn ControlToolbar(
     stream_key_info: ReadSignal<Option<StreamKeyResponse>>,
     set_stream_key_info: WriteSignal<Option<StreamKeyResponse>>,
     set_show_key_modal: WriteSignal<bool>,
-    cam_on: ReadSignal<bool>,
-    set_cam_on: WriteSignal<bool>,
     stream_title: ReadSignal<String>,
     set_stream_title: WriteSignal<String>,
+    elapsed_seconds: ReadSignal<u32>,
 ) -> impl IntoView {
     let (key_copied, set_key_copied) = signal(false);
 
@@ -536,29 +623,6 @@ fn ControlToolbar(
             // Controls row
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    // Mic
-                    <button
-                        on:click=move |_| { if is_listening.get() { stop_listening(); } else { start_listening(); } }
-                        class=move || if is_listening.get() {
-                            "w-10 h-10 flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 transition-colors"
-                        } else { btn }
-                        title="マイクミュート"
-                    >
-                        <span class="material-symbols-outlined text-[20px]">
-                            {move || if is_listening.get() { "mic" } else { "mic_off" }}
-                        </span>
-                    </button>
-                    // Camera
-                    <button
-                        on:click=move |_| set_cam_on.update(|v| *v = !*v)
-                        class=btn
-                        title="カメラ"
-                    >
-                        <span class="material-symbols-outlined text-[20px]">
-                            {move || if cam_on.get() { "videocam" } else { "videocam_off" }}
-                        </span>
-                    </button>
-                    <div class="w-px h-6 bg-border-dark mx-2"></div>
                     // Stream key
                     <button on:click=on_open_key_modal class=btn title="ストリームキー">
                         <span class="material-symbols-outlined text-[20px]">"key"</span>
@@ -578,7 +642,15 @@ fn ControlToolbar(
                     // Timer
                     <div class="flex items-center gap-3 px-4 py-2 bg-surface-darker rounded-lg border border-border-dark">
                         <span class="material-symbols-outlined text-slate-500 text-[18px]">"timer"</span>
-                        <span class="font-mono text-slate-300 font-medium tracking-wide">"00:00:00"</span>
+                        <span class="font-mono text-slate-300 font-medium tracking-wide">
+                            {move || {
+                                let secs = elapsed_seconds.get();
+                                let h = secs / 3600;
+                                let m = (secs % 3600) / 60;
+                                let s = secs % 60;
+                                format!("{:02}:{:02}:{:02}", h, m, s)
+                            }}
+                        </span>
                     </div>
                     // Start/Stop button
                     <button
@@ -603,7 +675,11 @@ fn ControlToolbar(
 // ─── Stats Grid ─────────────────────────────────────────────────────────────
 
 #[component]
-fn StatsGrid(msg_count: ReadSignal<usize>) -> impl IntoView {
+fn StatsGrid(
+    msg_count: ReadSignal<usize>,
+    ai_viewer_count: Signal<usize>,
+    elapsed_seconds: ReadSignal<u32>,
+) -> impl IntoView {
     view! {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
             // AI Viewers
@@ -617,13 +693,16 @@ fn StatsGrid(msg_count: ReadSignal<usize>) -> impl IntoView {
                     <div>
                         <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">"AI視聴者"</h3>
                         <div class="flex items-baseline gap-2">
-                            <span class="text-3xl font-bold text-white font-mono">"0"</span>
+                            <span class="text-3xl font-bold text-white font-mono">
+                                {move || ai_viewer_count.get().to_string()}
+                            </span>
                             <span class="text-xs text-slate-500">"稼働中のボット"</span>
                         </div>
                     </div>
                     <div class="mt-4">
                         <div class="w-full bg-surface-darker rounded-full h-1.5 overflow-hidden">
-                            <div class="bg-accent-blue h-1.5 rounded-full" style="width: 5%"></div>
+                            <div class="bg-accent-blue h-1.5 rounded-full"
+                                 style=move || format!("width: {}%", (ai_viewer_count.get() * 10).min(100))></div>
                         </div>
                     </div>
                 </div>
@@ -646,7 +725,18 @@ fn StatsGrid(msg_count: ReadSignal<usize>) -> impl IntoView {
                     </div>
                     <div class="mt-4">
                         <div class="w-full bg-surface-darker rounded-full h-1.5 overflow-hidden">
-                            <div class="bg-accent-purple h-1.5 rounded-full" style="width: 0%"></div>
+                            <div class="bg-accent-purple h-1.5 rounded-full"
+                                 style=move || {
+                                     let msgs = msg_count.get();
+                                     let duration = elapsed_seconds.get();
+                                     if duration == 0 {
+                                         "width: 0%".to_string()
+                                     } else {
+                                         let msgs_per_min = (msgs as f64 / (duration as f64 / 60.0)).min(10.0);
+                                         let rate = (msgs_per_min * 10.0) as u32;
+                                         format!("width: {}%", rate.min(100))
+                                     }
+                                 }></div>
                         </div>
                     </div>
                 </div>
@@ -691,6 +781,9 @@ fn ChatPanel(
     set_chat_input: WriteSignal<String>,
     send_chat: impl Fn(String) + 'static + Copy,
 ) -> impl IntoView {
+    let (show_emoji_picker, set_show_emoji_picker) = signal(false);
+    let emojis = vec!["😀", "😂", "❤️", "👍", "🎉", "🔥", "👏", "🙏", "💯", "✨"];
+
     let do_send = move || {
         let text = chat_input.get();
         if !text.trim().is_empty() {
@@ -819,10 +912,36 @@ fn ChatPanel(
                     </button>
                 </div>
                 <div class="flex justify-between items-center mt-3">
-                    <div class="flex gap-1">
-                        <button class="p-1.5 rounded text-slate-500 hover:text-primary hover:bg-surface-darker transition-colors" title="絵文字">
+                    <div class="flex gap-1 relative">
+                        <button
+                            on:click=move |_| set_show_emoji_picker.update(|v| *v = !*v)
+                            class="p-1.5 rounded text-slate-500 hover:text-primary hover:bg-surface-darker transition-colors"
+                            title="絵文字"
+                        >
                             <span class="material-symbols-outlined text-[18px]">"sentiment_satisfied"</span>
                         </button>
+
+                        {move || show_emoji_picker.get().then(|| view! {
+                            <div class="absolute bottom-full left-0 mb-2 bg-surface-dark border border-border-dark rounded-lg p-2 shadow-xl grid grid-cols-5 gap-1 z-50">
+                                {emojis.iter().map(|&emoji| {
+                                    let emoji_str = emoji.to_string();
+                                    let emoji_display = emoji.to_string();
+                                    view! {
+                                        <button
+                                            on:click=move |_| {
+                                                set_chat_input.update(|input| {
+                                                    input.push_str(&emoji_str);
+                                                });
+                                                set_show_emoji_picker.set(false);
+                                            }
+                                            class="text-2xl hover:bg-surface-darker p-1 rounded transition-colors"
+                                        >
+                                            {emoji_display}
+                                        </button>
+                                    }
+                                }).collect_view()}
+                            </div>
+                        })}
                     </div>
                     <span class="text-[10px] text-slate-600 font-mono">"ENTERで送信"</span>
                 </div>
@@ -835,6 +954,20 @@ fn ChatPanel(
 
 #[component]
 fn AnalyticsPage() -> impl IntoView {
+    use vyuber_shared::analytics::StreamMetadata;
+
+    let (sessions, set_sessions) = signal(vec![]);
+    let (selected_session, set_selected_session) = signal(None::<StreamMetadata>);
+
+    Effect::new(move |_| {
+        spawn_local(async move {
+            match services::analytics_api::list_metadata().await {
+                Ok(list) => set_sessions.set(list.sessions),
+                Err(e) => log::error!("Failed to load metadata: {}", e),
+            }
+        });
+    });
+
     view! {
         <main class="flex-1 flex flex-col p-6 overflow-y-auto min-w-0 bg-background-dark">
             <div class="mb-6">
@@ -842,38 +975,90 @@ fn AnalyticsPage() -> impl IntoView {
                 <p class="text-sm text-slate-500 mt-1">"配信パフォーマンスと視聴者データ"</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {[
-                    ("総視聴者数", "0", "group", "accent-blue"),
-                    ("平均視聴時間", "--", "schedule", "accent-purple"),
-                    ("チャットメッセージ", "0", "chat", "primary"),
-                    ("ピーク視聴者", "0", "trending_up", "accent-pink"),
-                ].into_iter().map(|(label, value, icon, color)| {
-                    let icon_cls = format!("material-symbols-outlined text-{} text-xl", color);
-                    let bg_cls = format!("p-2 bg-{}/10 rounded-lg", color);
-                    view! {
-                        <div class="bg-surface-dark border border-border-dark rounded-xl p-5 relative overflow-hidden">
-                            <div class="absolute top-0 right-0 p-4 opacity-50">
-                                <div class=bg_cls>
-                                    <span class=icon_cls>{icon}</span>
+            <div class="bg-surface-dark border border-border-dark rounded-xl p-6">
+                <h3 class="font-bold text-white mb-4">"過去の配信"</h3>
+                {move || {
+                    let sess = sessions.get();
+                    if sess.is_empty() {
+                        view! {
+                            <div class="text-center py-12">
+                                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-surface-darker border border-border-dark flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-3xl text-slate-700">"history"</span>
                                 </div>
+                                <p class="text-sm text-slate-400">"まだ配信データがありません"</p>
+                                <p class="text-xs text-slate-600 mt-1">"配信を開始してデータを記録しましょう"</p>
                             </div>
-                            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{label}</h3>
-                            <span class="text-3xl font-bold text-white font-mono">{value}</span>
-                        </div>
+                        }.into_any()
+                    } else {
+                        view! {
+                            <div class="space-y-3">
+                                {sess.into_iter().map(|session| {
+                                    let session_clone = session.clone();
+                                    view! {
+                                        <div
+                                            class="bg-surface-darker p-4 rounded-lg border border-border-dark hover:border-primary/50 cursor-pointer transition-all"
+                                            on:click=move |_| set_selected_session.set(Some(session_clone.clone()))
+                                        >
+                                            <div class="flex justify-between items-start">
+                                                <div>
+                                                    <h4 class="font-semibold text-white">{session.title.clone()}</h4>
+                                                    <p class="text-xs text-slate-500 mt-1">{session.started_at.clone()}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <p class="text-sm font-mono text-slate-300">
+                                                        {format!("{}分", session.duration_seconds / 60)}
+                                                    </p>
+                                                    <p class="text-xs text-slate-500">
+                                                        {format!("{} メッセージ", session.total_messages)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }).collect_view()}
+                            </div>
+                        }.into_any()
                     }
-                }).collect_view()}
+                }}
             </div>
 
-            <div class="bg-surface-dark border border-border-dark rounded-xl p-8 flex-1 flex items-center justify-center">
-                <div class="text-center">
-                    <div class="w-16 h-16 bg-surface-darker rounded-full flex items-center justify-center mx-auto mb-4 border border-border-dark">
-                        <span class="material-symbols-outlined text-3xl text-slate-600">"bar_chart"</span>
+            {move || selected_session.get().map(|session| {
+                view! {
+                    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+                         on:click=move |_| set_selected_session.set(None)>
+                        <div class="bg-surface-dark rounded-2xl p-6 w-[600px] border border-border-dark shadow-2xl"
+                             on:click=move |e: web_sys::MouseEvent| e.stop_propagation()>
+                            <div class="flex justify-between items-start mb-4">
+                                <h2 class="text-lg font-bold text-white">{session.title.clone()}</h2>
+                                <button
+                                    on:click=move |_| set_selected_session.set(None)
+                                    class="text-slate-400 hover:text-white"
+                                >
+                                    <span class="material-symbols-outlined">"close"</span>
+                                </button>
+                            </div>
+                            <div class="space-y-3 text-sm text-slate-300">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[18px] text-slate-500">"schedule"</span>
+                                    <span>"開始: " {session.started_at.clone()}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[18px] text-slate-500">"timer"</span>
+                                    <span>"時間: " {format!("{}分", session.duration_seconds / 60)}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[18px] text-slate-500">"chat"</span>
+                                    <span>"メッセージ数: " {session.total_messages}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[18px] text-slate-500">"smart_toy"</span>
+                                    <span>"AI視聴者数: " {session.ai_viewer_count}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <p class="text-sm text-slate-400 font-medium">"まだデータがありません"</p>
-                    <p class="text-xs text-slate-600 mt-1">"配信を開始するとここに分析データが表示されます"</p>
-                </div>
-            </div>
+                }
+            })}
         </main>
     }
 }

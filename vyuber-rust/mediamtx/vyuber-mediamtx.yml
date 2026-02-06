@@ -57,3 +57,7 @@ srt: no
 ###############################################
 paths:
   all:
+    record: yes
+    recordPath: ./recordings/%path/%Y-%m-%d_%H-%M-%S
+    recordFormat: fmp4
+    recordPartDuration: 1h

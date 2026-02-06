@@ -1,4 +1,4 @@
 pub mod gemini;
 pub mod groq;
-pub mod deepgram;
-pub mod deepgram_stream;
+pub mod whisper;
+pub mod whisper_stream;

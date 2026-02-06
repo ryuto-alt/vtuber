@@ -23,6 +23,9 @@ Thumbs.db
 # Media files (generated at runtime)
 media/
 
+# Whisper models (large binary files)
+vyuber-rust/models/
+
 # MCP and Serena config (contains secrets)
 .mcp.json
 .serena/

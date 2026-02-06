@@ -216,6 +216,10 @@ function __wbg_get_imports() {
         __wbg_close_1d08eaf57ed325c0: function() { return handleError(function (arg0) {
             arg0.close();
         }, arguments); },
+        __wbg_close_987a203f749ce4ab: function() { return handleError(function (arg0) {
+            const ret = arg0.close();
+            return ret;
+        }, arguments); },
         __wbg_close_a79afee31de55b36: function() { return handleError(function (arg0) {
             arg0.close();
         }, arguments); },
@@ -223,6 +227,10 @@ function __wbg_get_imports() {
             const ret = arg0.composedPath();
             return ret;
         },
+        __wbg_connect_aba749effbe588ea: function() { return handleError(function (arg0, arg1) {
+            const ret = arg0.connect(arg1);
+            return ret;
+        }, arguments); },
         __wbg_content_681ebf067b179491: function(arg0) {
             const ret = arg0.content;
             return ret;
@@ -242,6 +250,18 @@ function __wbg_get_imports() {
             const ret = arg0.createElement(getStringFromWasm0(arg1, arg2));
             return ret;
         }, arguments); },
+        __wbg_createGain_26f8f6d082c608c7: function() { return handleError(function (arg0) {
+            const ret = arg0.createGain();
+            return ret;
+        }, arguments); },
+        __wbg_createMediaStreamSource_738a729c18da3524: function() { return handleError(function (arg0, arg1) {
+            const ret = arg0.createMediaStreamSource(arg1);
+            return ret;
+        }, arguments); },
+        __wbg_createScriptProcessor_a0ea400cfcb68297: function() { return handleError(function (arg0, arg1, arg2, arg3) {
+            const ret = arg0.createScriptProcessor(arg1 >>> 0, arg2 >>> 0, arg3 >>> 0);
+            return ret;
+        }, arguments); },
         __wbg_createTask_deeb88a68fc97c9d: function() { return handleError(function (arg0, arg1) {
             const ret = console.createTask(getStringFromWasm0(arg0, arg1));
             return ret;
@@ -249,10 +269,6 @@ function __wbg_get_imports() {
         __wbg_createTextNode_55029686c9591bf3: function(arg0, arg1, arg2) {
             const ret = arg0.createTextNode(getStringFromWasm0(arg1, arg2));
             return ret;
-        },
-        __wbg_data_4e5f67c46a91cac5: function(arg0) {
-            const ret = arg0.data;
-            return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         },
         __wbg_data_5330da50312d0bc1: function(arg0) {
             const ret = arg0.data;
@@ -264,6 +280,13 @@ function __wbg_get_imports() {
         __wbg_deleteProperty_8c8a05da881fea59: function() { return handleError(function (arg0, arg1) {
             const ret = Reflect.deleteProperty(arg0, arg1);
             return ret;
+        }, arguments); },
+        __wbg_destination_a97dbc327ce97191: function(arg0) {
+            const ret = arg0.destination;
+            return ret;
+        },
+        __wbg_disconnect_7c1278d939bc7bb9: function() { return handleError(function (arg0) {
+            arg0.disconnect();
         }, arguments); },
         __wbg_document_ee35a3d3ae34ef6c: function(arg0) {
             const ret = arg0.document;
@@ -294,8 +317,27 @@ function __wbg_get_imports() {
             const ret = arg0.firstElementChild;
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
         },
+<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-4f40f49ee8f05f29.js
         __wbg_getAudioTracks_4d169d3da8b83690: function(arg0) {
             const ret = arg0.getAudioTracks();
+========
+        __wbg_gain_9c9a2e054010f159: function(arg0) {
+            const ret = arg0.gain;
+            return ret;
+        },
+        __wbg_getChannelData_96cc6f9b5bd7b314: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = arg1.getChannelData(arg2 >>> 0);
+            const ptr1 = passArrayF32ToWasm0(ret, wasm.__wbindgen_malloc);
+            const len1 = WASM_VECTOR_LEN;
+            getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+            getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+        }, arguments); },
+        __wbg_getRandomValues_9c5c1b115e142bb8: function() { return handleError(function (arg0, arg1) {
+            globalThis.crypto.getRandomValues(getArrayU8FromWasm0(arg0, arg1));
+        }, arguments); },
+        __wbg_getTime_1e3cd1391c5c3995: function(arg0) {
+            const ret = arg0.getTime();
+>>>>>>>> 65084f7 (feat: Whisperローカル文字起こし + アナリティクス・録画機能を追加):vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-eaf87567f7d20edf.js
             return ret;
         },
         __wbg_getUserMedia_e0ae761c45b48754: function() { return handleError(function (arg0, arg1) {
@@ -327,6 +369,10 @@ function __wbg_get_imports() {
         __wbg_initWebrtcPlayer_6df0bbeddf65693c: function(arg0, arg1) {
             window.initWebrtcPlayer(getStringFromWasm0(arg0, arg1));
         },
+        __wbg_inputBuffer_3a5243721590c481: function() { return handleError(function (arg0) {
+            const ret = arg0.inputBuffer;
+            return ret;
+        }, arguments); },
         __wbg_insertBefore_1468142836e61a51: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = arg0.insertBefore(arg1, arg2);
             return ret;
@@ -455,6 +501,10 @@ function __wbg_get_imports() {
             const ret = new URLSearchParams();
             return ret;
         }, arguments); },
+        __wbg_new_0_73afc35eb544e539: function() {
+            const ret = new Date();
+            return ret;
+        },
         __wbg_new_361308b2356cecd0: function() {
             const ret = new Object();
             return ret;
@@ -467,6 +517,10 @@ function __wbg_get_imports() {
             const ret = new Error(getStringFromWasm0(arg0, arg1));
             return ret;
         },
+        __wbg_new_848d3caa9d043d05: function() { return handleError(function () {
+            const ret = new lAudioContext();
+            return ret;
+        }, arguments); },
         __wbg_new_8a6f238a6ece86ea: function() {
             const ret = new Error();
             return ret;
@@ -478,7 +532,11 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
+<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-4f40f49ee8f05f29.js
                         return wasm_bindgen__convert__closures_____invoke__h4791dcd2224113ed(a, state0.b, arg0, arg1);
+========
+                        return wasm_bindgen__convert__closures_____invoke__h7f17444ddce5ad45(a, state0.b, arg0, arg1);
+>>>>>>>> 65084f7 (feat: Whisperローカル文字起こし + アナリティクス・録画機能を追加):vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-eaf87567f7d20edf.js
                     } finally {
                         state0.a = a;
                     }
@@ -493,6 +551,10 @@ function __wbg_get_imports() {
             const ret = new URL(getStringFromWasm0(arg0, arg1));
             return ret;
         }, arguments); },
+        __wbg_new_from_slice_a3d2629dc1826784: function(arg0, arg1) {
+            const ret = new Uint8Array(getArrayU8FromWasm0(arg0, arg1));
+            return ret;
+        },
         __wbg_new_no_args_1c7c842f08d00ebb: function(arg0, arg1) {
             const ret = new Function(getStringFromWasm0(arg0, arg1));
             return ret;
@@ -501,10 +563,6 @@ function __wbg_get_imports() {
             const ret = new Uint8Array(arg0, arg1 >>> 0, arg2 >>> 0);
             return ret;
         },
-        __wbg_new_with_media_stream_and_media_recorder_options_58d06cefd0ce235a: function() { return handleError(function (arg0, arg1) {
-            const ret = new MediaRecorder(arg0, arg1);
-            return ret;
-        }, arguments); },
         __wbg_new_with_str_a7c7f835549b152a: function() { return handleError(function (arg0, arg1) {
             const ret = new Request(getStringFromWasm0(arg0, arg1));
             return ret;
@@ -575,7 +633,11 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
+<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-4f40f49ee8f05f29.js
                         return wasm_bindgen__convert__closures_____invoke__h3657581f96219720(a, state0.b, );
+========
+                        return wasm_bindgen__convert__closures_____invoke__h11b2381a315f1102(a, state0.b, );
+>>>>>>>> 65084f7 (feat: Whisperローカル文字起こし + アナリティクス・録画機能を追加):vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-eaf87567f7d20edf.js
                     } finally {
                         state0.a = a;
                     }
@@ -585,6 +647,10 @@ function __wbg_get_imports() {
             } finally {
                 state0.a = state0.b = 0;
             }
+        },
+        __wbg_sampleRate_8142bbf3840b654b: function(arg0) {
+            const ret = arg0.sampleRate;
+            return ret;
         },
         __wbg_scrollHeight_04fd01111276a28d: function(arg0) {
             const ret = arg0.scrollHeight;
@@ -597,11 +663,15 @@ function __wbg_get_imports() {
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
-        __wbg_send_2d221387919e73bd: function() { return handleError(function (arg0, arg1) {
+        __wbg_send_df553c0b04f76a3a: function() { return handleError(function (arg0, arg1) {
             arg0.send(arg1);
         }, arguments); },
         __wbg_setAttribute_cc8e4c8a2a008508: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
             arg0.setAttribute(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
+        }, arguments); },
+        __wbg_setInterval_612728cce80dfecf: function() { return handleError(function (arg0, arg1, arg2) {
+            const ret = arg0.setInterval(arg1, arg2);
+            return ret;
         }, arguments); },
         __wbg_setTimeout_db2dbaeefb6f39c7: function() { return handleError(function (arg0, arg1) {
             const ret = setTimeout(arg0, arg1);
@@ -638,20 +708,20 @@ function __wbg_get_imports() {
         __wbg_set_nodeValue_d947eb0a476b80d7: function(arg0, arg1, arg2) {
             arg0.nodeValue = arg1 === 0 ? undefined : getStringFromWasm0(arg1, arg2);
         },
-        __wbg_set_ondataavailable_69d78d920567d505: function(arg0, arg1) {
-            arg0.ondataavailable = arg1;
+        __wbg_set_onaudioprocess_fe705d8364dd3442: function(arg0, arg1) {
+            arg0.onaudioprocess = arg1;
         },
         __wbg_set_onmessage_2114aa5f4f53051e: function(arg0, arg1) {
             arg0.onmessage = arg1;
-        },
-        __wbg_set_onopen_b7b52d519d6c0f11: function(arg0, arg1) {
-            arg0.onopen = arg1;
         },
         __wbg_set_scrollTop_bebe746cd217a3d1: function(arg0, arg1) {
             arg0.scrollTop = arg1;
         },
         __wbg_set_search_1d369b0f3868e132: function(arg0, arg1, arg2) {
             arg0.search = getStringFromWasm0(arg1, arg2);
+        },
+        __wbg_set_value_c51b9eb4cf70aa54: function(arg0, arg1) {
+            arg0.value = arg1;
         },
         __wbg_set_video_volume_574031c0c78353cd: function(arg0, arg1, arg2) {
             set_video_volume(getStringFromWasm0(arg0, arg1), arg2);
@@ -660,23 +730,12 @@ function __wbg_get_imports() {
             const ret = arg0.shiftKey;
             return ret;
         },
-        __wbg_size_e05d31cc6049815f: function(arg0) {
-            const ret = arg0.size;
-            return ret;
-        },
         __wbg_stack_0ed75d68575b0f3c: function(arg0, arg1) {
             const ret = arg1.stack;
             const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
             const len1 = WASM_VECTOR_LEN;
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-        },
-        __wbg_start_ab99a5cc72260da0: function() { return handleError(function (arg0, arg1) {
-            arg0.start(arg1);
-        }, arguments); },
-        __wbg_state_963a46a35fc42d6d: function(arg0) {
-            const ret = arg0.state;
-            return (__wbindgen_enum_RecordingState.indexOf(ret) + 1 || 4) - 1;
         },
         __wbg_static_accessor_GLOBAL_12837167ad935116: function() {
             const ret = typeof global === 'undefined' ? null : global;
@@ -701,12 +760,15 @@ function __wbg_get_imports() {
         __wbg_stopPropagation_6e5e2a085214ac63: function(arg0) {
             arg0.stopPropagation();
         },
+<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-4f40f49ee8f05f29.js
         __wbg_stop_b1b3a19a0af2f9b5: function() { return handleError(function (arg0) {
             arg0.stop();
         }, arguments); },
         __wbg_stop_b859162f9cf5e2ae: function(arg0) {
             arg0.stop();
         },
+========
+>>>>>>>> 65084f7 (feat: Whisperローカル文字起こし + アナリティクス・録画機能を追加):vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-eaf87567f7d20edf.js
         __wbg_target_521be630ab05b11e: function(arg0) {
             const ret = arg0.target;
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
@@ -764,6 +826,7 @@ function __wbg_get_imports() {
             console.warn(arg0);
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-4f40f49ee8f05f29.js
             // Cast intrinsic for `Closure(Closure { dtor_idx: 440, function: Function { arguments: [NamedExternref("BlobEvent")], shim_idx: 128, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h0a4694df99a09108, wasm_bindgen__convert__closures_____invoke__hfb93c2c52a54cab7);
             return ret;
@@ -791,6 +854,35 @@ function __wbg_get_imports() {
         __wbindgen_cast_0000000000000006: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { dtor_idx: 794, function: Function { arguments: [Externref], shim_idx: 795, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__hfd9f2631da8925fe, wasm_bindgen__convert__closures_____invoke__h71ae15cbbd575945);
+========
+            // Cast intrinsic for `Closure(Closure { dtor_idx: 1, function: Function { arguments: [NamedExternref("AudioProcessingEvent")], shim_idx: 440, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__hfd52dfe63196196c, wasm_bindgen__convert__closures_____invoke__hd3b80861ee93f056);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000002: function(arg0, arg1) {
+            // Cast intrinsic for `Closure(Closure { dtor_idx: 758, function: Function { arguments: [], shim_idx: 759, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h4c8d9d79afa98448, wasm_bindgen__convert__closures_____invoke__h61277a937bc810bd);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000003: function(arg0, arg1) {
+            // Cast intrinsic for `Closure(Closure { dtor_idx: 824, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 825, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__he0b6c95740357124, wasm_bindgen__convert__closures_____invoke__h4fe125c67070964a);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000004: function(arg0, arg1) {
+            // Cast intrinsic for `Closure(Closure { dtor_idx: 847, function: Function { arguments: [], shim_idx: 848, ret: Unit, inner_ret: Some(Unit) }, mutable: false }) -> Externref`.
+            const ret = makeClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h784e10e2e7b6686c, wasm_bindgen__convert__closures_____invoke__h937aaf22a2231074);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000005: function(arg0, arg1) {
+            // Cast intrinsic for `Closure(Closure { dtor_idx: 876, function: Function { arguments: [NamedExternref("Event")], shim_idx: 877, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h68b2ac53383688b2, wasm_bindgen__convert__closures_____invoke__h36012c3d7d52249d);
+            return ret;
+        },
+        __wbindgen_cast_0000000000000006: function(arg0, arg1) {
+            // Cast intrinsic for `Closure(Closure { dtor_idx: 934, function: Function { arguments: [Externref], shim_idx: 935, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__hcd22c521f5ce47b5, wasm_bindgen__convert__closures_____invoke__h18d62babe3c2bf70);
+>>>>>>>> 65084f7 (feat: Whisperローカル文字起こし + アナリティクス・録画機能を追加):vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-eaf87567f7d20edf.js
             return ret;
         },
         __wbindgen_cast_0000000000000007: function(arg0, arg1) {
@@ -814,6 +906,7 @@ function __wbg_get_imports() {
     };
 }
 
+<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-4f40f49ee8f05f29.js
 function wasm_bindgen__convert__closures_____invoke__hbae7d423393f7b76(arg0, arg1) {
     wasm.wasm_bindgen__convert__closures_____invoke__hbae7d423393f7b76(arg0, arg1);
 }
@@ -845,6 +938,40 @@ function wasm_bindgen__convert__closures_____invoke__h71ae15cbbd575945(arg0, arg
 
 function wasm_bindgen__convert__closures_____invoke__h4791dcd2224113ed(arg0, arg1, arg2, arg3) {
     wasm.wasm_bindgen__convert__closures_____invoke__h4791dcd2224113ed(arg0, arg1, arg2, arg3);
+========
+const lAudioContext = (typeof AudioContext !== 'undefined' ? AudioContext : (typeof webkitAudioContext !== 'undefined' ? webkitAudioContext : undefined));
+function wasm_bindgen__convert__closures_____invoke__h61277a937bc810bd(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h61277a937bc810bd(arg0, arg1);
+}
+
+function wasm_bindgen__convert__closures_____invoke__h937aaf22a2231074(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h937aaf22a2231074(arg0, arg1);
+}
+
+function wasm_bindgen__convert__closures_____invoke__h11b2381a315f1102(arg0, arg1) {
+    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h11b2381a315f1102(arg0, arg1);
+    return ret !== 0;
+}
+
+function wasm_bindgen__convert__closures_____invoke__hd3b80861ee93f056(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__hd3b80861ee93f056(arg0, arg1, arg2);
+}
+
+function wasm_bindgen__convert__closures_____invoke__h4fe125c67070964a(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h4fe125c67070964a(arg0, arg1, arg2);
+}
+
+function wasm_bindgen__convert__closures_____invoke__h36012c3d7d52249d(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h36012c3d7d52249d(arg0, arg1, arg2);
+}
+
+function wasm_bindgen__convert__closures_____invoke__h18d62babe3c2bf70(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h18d62babe3c2bf70(arg0, arg1, arg2);
+}
+
+function wasm_bindgen__convert__closures_____invoke__h7f17444ddce5ad45(arg0, arg1, arg2, arg3) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h7f17444ddce5ad45(arg0, arg1, arg2, arg3);
+>>>>>>>> 65084f7 (feat: Whisperローカル文字起こし + アナリティクス・録画機能を追加):vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-eaf87567f7d20edf.js
 }
 
 
@@ -852,9 +979,6 @@ const __wbindgen_enum_BinaryType = ["blob", "arraybuffer"];
 
 
 const __wbindgen_enum_ReadableStreamType = ["bytes"];
-
-
-const __wbindgen_enum_RecordingState = ["inactive", "recording", "paused"];
 const IntoUnderlyingByteSourceFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_intounderlyingbytesource_free(ptr >>> 0, 1));
@@ -953,6 +1077,14 @@ function getDataViewMemory0() {
     return cachedDataViewMemory0;
 }
 
+let cachedFloat32ArrayMemory0 = null;
+function getFloat32ArrayMemory0() {
+    if (cachedFloat32ArrayMemory0 === null || cachedFloat32ArrayMemory0.byteLength === 0) {
+        cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
+    }
+    return cachedFloat32ArrayMemory0;
+}
+
 function getStringFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return decodeText(ptr, len);
@@ -977,6 +1109,31 @@ function handleError(f, args) {
 
 function isLikeNone(x) {
     return x === undefined || x === null;
+}
+
+function makeClosure(arg0, arg1, dtor, f) {
+    const state = { a: arg0, b: arg1, cnt: 1, dtor };
+    const real = (...args) => {
+
+        // First up with a closure we increment the internal reference
+        // count. This ensures that the Rust closure environment won't
+        // be deallocated while we're invoking it.
+        state.cnt++;
+        try {
+            return f(state.a, state.b, ...args);
+        } finally {
+            real._wbg_cb_unref();
+        }
+    };
+    real._wbg_cb_unref = () => {
+        if (--state.cnt === 0) {
+            state.dtor(state.a, state.b);
+            state.a = 0;
+            CLOSURE_DTORS.unregister(state);
+        }
+    };
+    CLOSURE_DTORS.register(real, state, state);
+    return real;
 }
 
 function makeMutClosure(arg0, arg1, dtor, f) {
@@ -1005,6 +1162,13 @@ function makeMutClosure(arg0, arg1, dtor, f) {
     };
     CLOSURE_DTORS.register(real, state, state);
     return real;
+}
+
+function passArrayF32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getFloat32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {
@@ -1078,6 +1242,7 @@ function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
     cachedDataViewMemory0 = null;
+    cachedFloat32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

@@ -7,6 +7,7 @@ use tower_http::{
     services::ServeDir,
 };
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 pub mod api;
 pub mod config;
@@ -15,6 +16,7 @@ pub mod streaming;
 pub mod mediamtx;
 
 use api::chat::ChatHistory;
+use services::whisper::WhisperService;
 
 /// Axumサーバーを起動する（トレーシング設定は呼び出し側の責務）
 pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -25,6 +27,14 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
         tracing::error!("Failed to start MediaMTX: {}", e);
         tracing::warn!("Continuing without MediaMTX — manual startup required");
     }
+
+    // Whisperモデルをロード
+    let model_path = std::env::var("WHISPER_MODEL_PATH")
+        .unwrap_or_else(|_| "models/ggml-small.bin".to_string());
+    let whisper_service = Arc::new(
+        WhisperService::new(&model_path)
+            .expect("Failed to load Whisper model. Run download-model.bat first.")
+    );
 
     // StreamManagerを初期化
     let stream_manager = streaming::StreamManager::new();
@@ -41,6 +51,12 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
         .route("/api/chat", post(api::chat::handle_chat))
         .with_state(chat_history);
 
+    // 音声認識用のルーター（WhisperServiceをStateとして使用）
+    let whisper_router = Router::new()
+        .route("/api/transcribe", post(api::transcribe::transcribe))
+        .route("/api/transcribe/live", get(services::whisper_stream::handler))
+        .with_state(whisper_service);
+
     let app = Router::new()
         .route("/api/stream-key",
             get(api::stream_key::get_key)
@@ -48,12 +64,14 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
             .delete(api::stream_key::delete_key)
         )
         .merge(chat_router)
-        // 音声ファイル送信ルート（既存）
-        .route("/api/transcribe", post(api::deepgram::transcribe))
-        // リアルタイム音声認識ルート
-        .route("/api/transcribe/live", get(services::deepgram_stream::handler))
+        .merge(whisper_router)
         .route("/api/live/status", get(api::live::stream_status))
         .route("/api/live/whep", post(api::live::whep_proxy))
+        // 分析API
+        .route("/api/analytics/save", post(api::analytics::save_metadata))
+        .route("/api/analytics/list", get(api::analytics::list_metadata))
+        // 録画API
+        .route("/api/recording", post(api::recording::control_recording))
         .nest_service("/", ServeDir::new(static_path))
         .layer(CorsLayer::permissive())
         .with_state(stream_manager);

@@ -32,6 +32,15 @@ web-sys = { version = "0.3", features = [
     "MediaRecorderOptions",
     "RecordingState",
     "AudioContext",
+    "BaseAudioContext",
+    "AudioNode",
+    "AudioBuffer",
+    "AudioProcessingEvent",
+    "ScriptProcessorNode",
+    "MediaStreamAudioSourceNode",
+    "AudioDestinationNode",
+    "GainNode",
+    "AudioParam",
     "Blob",
     "BlobEvent",
     "BlobPropertyBag",
@@ -63,6 +72,8 @@ log = "0.4"
 console_log = "1.0"
 rand = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
+chrono = { version = "0.4", features = ["wasmbind"] }
+uuid = { version = "1.0", features = ["v4", "js"] }
 
 # Shared Types
 vyuber-shared = { workspace = true }

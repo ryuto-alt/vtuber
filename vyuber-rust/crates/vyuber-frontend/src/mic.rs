@@ -6,6 +6,7 @@ use web_sys::{AudioContext, AudioProcessingEvent, GainNode, ScriptProcessorNode,
 use serde::{Deserialize, Serialize};
 use log::error;
 use crate::state::{GlobalState, ChatUser};
+use crate::services; // サービスモジュールのインポート
 
 #[derive(Serialize, Deserialize, Debug)]
 struct WhisperResponse {
@@ -13,7 +14,6 @@ struct WhisperResponse {
     is_final: bool,
 }
 
-/// PCMデータを指定のサンプルレートにダウンサンプリング（線形補間）
 fn downsample(buffer: &[f32], from_rate: f32, to_rate: f32) -> Vec<f32> {
     if (from_rate - to_rate).abs() < 1.0 {
         return buffer.to_vec();
@@ -26,7 +26,6 @@ fn downsample(buffer: &[f32], from_rate: f32, to_rate: f32) -> Vec<f32> {
         let idx = src_idx as usize;
         let frac = src_idx - idx as f32;
         if idx + 1 < buffer.len() {
-            // 線形補間: 隣接サンプル間を補間して音質向上
             result.push(buffer[idx] * (1.0 - frac) + buffer[idx + 1] * frac);
         } else if idx < buffer.len() {
             result.push(buffer[idx]);
@@ -35,7 +34,6 @@ fn downsample(buffer: &[f32], from_rate: f32, to_rate: f32) -> Vec<f32> {
     result
 }
 
-/// f32スライスをリトルエンディアンのバイト列に変換
 fn f32_to_le_bytes(data: &[f32]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(data.len() * 4);
     for sample in data {
@@ -97,7 +95,6 @@ pub fn Mic() -> impl IntoView {
                 let navigator = window.navigator();
                 let media_devices = navigator.media_devices().expect("MediaDevices not found");
 
-                // 1. マイク権限（AGC・ノイズ抑制で小声でも検出しやすくする）
                 let constraints = web_sys::MediaStreamConstraints::new();
                 let audio_settings = js_sys::Object::new();
                 let _ = js_sys::Reflect::set(&audio_settings, &"autoGainControl".into(), &true.into());
@@ -110,7 +107,6 @@ pub fn Mic() -> impl IntoView {
                         let stream_js = wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
                         let media_stream = stream_js.dyn_into::<web_sys::MediaStream>().unwrap();
 
-                        // 2. AudioContextを作成
                         let audio_ctx = match AudioContext::new() {
                             Ok(ctx) => ctx,
                             Err(e) => {
@@ -122,25 +118,21 @@ pub fn Mic() -> impl IntoView {
 
                         let sample_rate = audio_ctx.sample_rate();
 
-                        // 3. マイクストリームをAudioContextに接続
                         let source = audio_ctx
                             .create_media_stream_source(&media_stream)
                             .expect("Failed to create media stream source");
 
-                        // 4. ScriptProcessorNode (バッファサイズ4096, 入力1ch, 出力1ch)
                         let processor = audio_ctx
                             .create_script_processor_with_buffer_size_and_number_of_input_channels_and_number_of_output_channels(
                                 4096, 1, 1,
                             )
                             .expect("Failed to create script processor");
 
-                        // 5. GainNode（マイクブースト: 小声でも検出しやすくする）
                         let gain_node = audio_ctx
                             .create_gain()
                             .expect("Failed to create gain node");
                         gain_node.gain().set_value(mic_gain.get_untracked() as f32);
 
-                        // 6. WebSocket接続
                         let protocol = if window.location().protocol().unwrap() == "https:" { "wss:" } else { "ws:" };
                         let host = window.location().host().unwrap();
                         let ws_url = format!("{}//{}/api/transcribe/live", protocol, host);
@@ -155,15 +147,35 @@ pub fn Mic() -> impl IntoView {
                         };
                         ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
 
-                        // 6. WebSocket受信: Whisperの認識結果を処理
+                        // ★ここから修正済みロジック
                         let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
                             if let Ok(text) = e.data().dyn_into::<js_sys::JsString>() {
                                 let text_string: String = text.into();
                                 if let Ok(response) = serde_json::from_str::<WhisperResponse>(&text_string) {
                                     if response.is_final && !response.text.is_empty() {
                                         let content = response.text.trim();
-                                        if send_to_chat.get() && !content.is_empty() {
+                                        if send_to_chat.get_untracked() && !content.is_empty() {
+                                            // 1. 自分の発言を表示
                                             state.add_message(ChatUser::Me, content.to_string());
+
+                                            // 2. AIへ送信して返信をもらう
+                                            let text_to_send = content.to_string();
+                                            let state_for_async = state; // クロージャ内のstateをコピーして渡す
+
+                                            spawn_local(async move {
+                                                match crate::services::chat_api::send_message(&text_to_send).await {
+                                                    Ok(comments) => {
+                                                        for (i, comment) in comments.into_iter().enumerate() {
+                                                            gloo_timers::future::TimeoutFuture::new((500 + i * 400) as u32).await;
+                                                            state_for_async.add_message(ChatUser::Ai(comment.user), comment.text);
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        error!("AI Response Error: {}", e);
+                                                        state_for_async.add_message(ChatUser::Ai("System".to_string()), format!("エラー: {}", e));
+                                                    }
+                                                }
+                                            });
                                         }
                                     }
                                 }
@@ -171,8 +183,8 @@ pub fn Mic() -> impl IntoView {
                         }) as Box<dyn FnMut(MessageEvent)>);
                         ws.set_onmessage(Some(on_message.as_ref().unchecked_ref()));
                         on_message.forget();
+                        // ★ここまで修正済み
 
-                        // 7. 音声処理コールバック: PCMデータをダウンサンプリングして送信
                         let ws_clone = ws.clone();
                         let on_audio_process = Closure::wrap(Box::new(move |e: AudioProcessingEvent| {
                             if ws_clone.ready_state() != WebSocket::OPEN {
@@ -180,11 +192,8 @@ pub fn Mic() -> impl IntoView {
                             }
                             if let Ok(input_buffer) = e.input_buffer() {
                                 if let Ok(channel_data) = input_buffer.get_channel_data(0) {
-                                    // ダウンサンプリング (ブラウザのレート → 16kHz)
                                     let downsampled = downsample(&channel_data, sample_rate, 16000.0);
                                     let bytes = f32_to_le_bytes(&downsampled);
-
-                                    // バイナリで送信
                                     let array = js_sys::Uint8Array::from(&bytes[..]);
                                     let _ = ws_clone.send_with_array_buffer(&array.buffer());
                                 }
@@ -193,7 +202,6 @@ pub fn Mic() -> impl IntoView {
                         processor.set_onaudioprocess(Some(on_audio_process.as_ref().unchecked_ref()));
                         on_audio_process.forget();
 
-                        // 9. オーディオグラフを接続: source → GainNode → processor → destination
                         let _ = source.connect_with_audio_node(&gain_node);
                         let _ = gain_node.connect_with_audio_node(&processor);
                         let _ = processor.connect_with_audio_node(&audio_ctx.destination());
@@ -215,7 +223,8 @@ pub fn Mic() -> impl IntoView {
         <div style="position: fixed; bottom: 20px; left: 100px; z-index: 9999; display: flex; align_items: center; gap: 10px;">
             <button
                 on:click=toggle_recording
-                style="background: #ff4444; color: white; border: none; padding: 12px 24px; border-radius: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size: 16px;">
+                style="background: #ff4444; color: white; border: none; padding: 12px 24px; border-radius: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); font-size: 16px;"
+            >
                 {move || if is_recording.get() { "■ 停止" } else { "🎤 音声入力" }}
             </button>
 
@@ -232,7 +241,6 @@ pub fn Mic() -> impl IntoView {
                 </div>
             })}
 
-            // マイク感度スライダー（録音中のみ表示）
             {move || is_recording.get().then(|| view! {
                 <div style="background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 20px; color: white; display: flex; align-items: center; gap: 8px;">
                     <label style="font-size: 14px; white-space: nowrap;">感度</label>

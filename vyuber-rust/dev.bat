@@ -101,7 +101,7 @@ if %ERRORLEVEL% neq 0 (
 echo.
 echo Starting backend server...
 set "WHISPER_MODEL_PATH=%MODEL_PATH%"
-start "AIVID Backend" cmd /k "cd /d %ROOT_DIR% && cargo run --bin vyuber-backend || (echo. && echo ===== BACKEND CRASHED ===== && pause)"
+start "AIVID Backend" cmd /k "cd /d %ROOT_DIR% && infisical run -- cargo run --bin vyuber-backend || (echo. && echo ===== BACKEND CRASHED ===== && pause)"
 
 :: localhost:3000 が応答するまで待つ（最大60秒）
 echo Waiting for backend server on http://localhost:3000 ...

@@ -17,7 +17,7 @@ pub async fn send_message(message: &str) -> Result<Vec<ChatComment>, String> {
         message: message.to_string(),
     };
 
-    let response = Request::post("/api/chat")
+    let response = Request::post("http://127.0.0.1:3000/api/chat")
         .json(&request_body)
         .map_err(|e| format!("Failed to serialize request: {}", e))?
         .send()

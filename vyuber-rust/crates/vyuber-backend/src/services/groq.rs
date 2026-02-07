@@ -54,6 +54,7 @@ impl GroqClient {
             .expect("GROQ_API_KEY must be set");
 
         tracing::info!("[Chat API] GROQ_API_KEY exists: true");
+        // セキュリティのため、キー全体ではなく長さだけログに出す
         tracing::info!("[Chat API] API Key length: {}", api_key.len());
 
         Self {
@@ -142,7 +143,7 @@ impl GroqClient {
             messages: vec![
                 Message {
                     role: "system".to_string(),
-                    content: "YouTube配信の視聴者コメント生成AI。自然な日本語で、5人それぞれ違うタイプのコメントを生成。質問、共感、自分の話、リアクション、ボケを混ぜる。".to_string(),
+                    content: "YouTube配信の視聴者コメント生成AI。JSON形式で出力してください。自然な日本語で、5人それぞれ違うタイプのコメントを生成。".to_string(),
                 },
                 Message {
                     role: "user".to_string(),
@@ -166,22 +167,39 @@ impl GroqClient {
             .send()
             .await?;
 
+        // ★★★ ここから修正：詳細ログ付きエラーハンドリング ★★★
+
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await?;
+            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
             tracing::error!("[Chat API] Groq API error ({}): {}", status, error_text);
             anyhow::bail!("Groq API returned error: {}", error_text);
         }
 
-        let groq_response: GroqResponse = response.json().await?;
+        // 1. 生のレスポンスボディをテキストとして取得してログに出す
+        let response_text_raw = response.text().await?;
+        tracing::info!("[Chat API] Raw response from Groq: {}", response_text_raw);
 
-        let response_text = &groq_response.choices[0].message.content;
-        let preview: String = response_text.chars().take(100).collect();
-        tracing::info!("[Chat API] Received response: {}", preview);
+        // 2. 外側のJSON (GroqResponse) をパース
+        let groq_response: GroqResponse = serde_json::from_str(&response_text_raw)
+            .map_err(|e| {
+                tracing::error!("[Chat API] JSON Parse Error (GroqResponse): {}", e);
+                anyhow::anyhow!("Failed to parse GroqResponse: {}", e)
+            })?;
+        
+        // 3. 中身のJSON文字列 (content) を取り出す
+        let content_json_str = &groq_response.choices[0].message.content;
+        tracing::info!("[Chat API] Content JSON string: {}", content_json_str);
 
-        // JSONとしてパース
-        let wrapper: CommentsWrapper = serde_json::from_str(response_text)?;
-        tracing::info!("[Chat API] Parsed JSON, comment count: {}", wrapper.comments.len());
+        // 4. 中身のJSON (CommentsWrapper) をパース
+        let wrapper: CommentsWrapper = serde_json::from_str(content_json_str)
+            .map_err(|e| {
+                tracing::error!("[Chat API] JSON Parse Error (CommentsWrapper): {}", e);
+                // エラーの原因がわかりやすいように、パースしようとした文字列もエラーに含める
+                anyhow::anyhow!("Failed to parse content JSON. Input: '{}', Error: {}", content_json_str, e)
+            })?;
+
+        tracing::info!("[Chat API] Successfully parsed {} comments", wrapper.comments.len());
 
         Ok(wrapper.comments)
     }

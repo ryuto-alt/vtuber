@@ -52,3 +52,5 @@ tracing-appender = { workspace = true }
 
 # Shared Types
 vyuber-shared = { workspace = true }
+
+rand = "0.8"

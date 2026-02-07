@@ -2,6 +2,7 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use vyuber_shared::chat::ChatComment;
+use crate::api::personas::Persona;
 
 pub struct GroqClient {
     api_key: String,
@@ -44,8 +45,14 @@ struct ResponseMessage {
 }
 
 #[derive(Deserialize)]
+struct RawComment {
+    user: String,
+    text: String,
+}
+
+#[derive(Deserialize)]
 struct CommentsWrapper {
-    comments: Vec<ChatComment>,
+    comments: Vec<RawComment>,
 }
 
 impl GroqClient {
@@ -54,7 +61,6 @@ impl GroqClient {
             .expect("GROQ_API_KEY must be set");
 
         tracing::info!("[Chat API] GROQ_API_KEY exists: true");
-        // セキュリティのため、キー全体ではなく長さだけログに出す
         tracing::info!("[Chat API] API Key length: {}", api_key.len());
 
         Self {
@@ -63,103 +69,74 @@ impl GroqClient {
         }
     }
 
-    /// 文脈付きでコメントを生成（前のコメントへのフォローアップあり）
-    pub async fn generate_comments_with_context(&self, message: &str, last_comments: Option<&[ChatComment]>) -> Result<Vec<ChatComment>> {
+    pub async fn generate_comments_with_context(
+        &self, 
+        message: &str, 
+        last_comments: Option<&[ChatComment]>,
+        active_personas: &[Persona]
+    ) -> Result<Vec<ChatComment>> {
         tracing::info!("[Chat API] Generating comments for message: {}", message);
 
-        // 前のコメントがあれば、視聴者情報を構築
-        let context = if let Some(comments) = last_comments {
-            let mut context_parts = Vec::new();
+        // ★ここがエラーの原因でした！新しい項目に合わせて修正済みです
+        let personas_prompt = active_personas.iter().map(|p| {
+            format!(
+                "- 名前: {}\n  属性: {} / {} / {}\n  関係: {}\n  興味: {}\n  性格・口調: {}", 
+                p.name, p.age, p.job, p.location, p.relationship, p.interest, p.tone
+            )
+        }).collect::<Vec<_>>().join("\n\n");
 
-            // 前のターンの視聴者リスト
+        let context = if let Some(comments) = last_comments {
             let users: Vec<String> = comments.iter()
                 .map(|c| format!("{}「{}」", c.user, c.text))
                 .collect();
-            context_parts.push(format!("【前のターンの視聴者コメント】\n{}", users.join("\n")));
-
-            // 配信者が誰かの名前を呼んでいるかチェック
-            let mentioned_users: Vec<&ChatComment> = comments.iter()
-                .filter(|c| message.contains(&c.user))
-                .collect();
-
-            if !mentioned_users.is_empty() {
-                let names: Vec<String> = mentioned_users.iter()
-                    .map(|c| c.user.clone())
-                    .collect();
-                context_parts.push(format!(
-                    "\n【重要】配信者が「{}」に話しかけています。この人は必ず返答してください。1人目のコメントにしてください。",
-                    names.join("、")
-                ));
-            }
-
-            // 質問した人
-            let questions: Vec<String> = comments.iter()
-                .filter(|c| c.text.contains('？') || c.text.contains('?'))
-                .map(|c| c.user.clone())
-                .collect();
-            if !questions.is_empty() && mentioned_users.is_empty() {
-                context_parts.push(format!(
-                    "\n【質問した視聴者】{}\n→ 配信者が答えたので、この人たちは「ありがとう」「なるほど」等のリアクションをする可能性あり",
-                    questions.join("、")
-                ));
-            }
-
-            context_parts.join("\n")
+            format!("【直前のチャット履歴】\n{}", users.join("\n"))
         } else {
-            String::new()
+            "【直前のチャット履歴】\n(なし)".to_string()
         };
 
-        let prompt = format!(r#"YouTube配信の視聴者コメント5件を生成。
-{context}
-【配信者の発言】「{message}」
+        // システムプロンプト
+        let system_prompt = format!(r#"
+あなたはYouTube配信のチャット欄を盛り上げる「視聴者シミュレーター」です。
+今回は、以下の【選抜された視聴者】になりきってコメントを生成してください。
+各視聴者の「年齢」「職業」「関係性」などの背景情報を踏まえ、リアルな発言を心がけてください。
 
-【5人の役割（必ずこの通りに）】
-1. 短いリアクション（3〜8文字）「草」「まじか」「それな」など
-2. 質問する人（10〜20文字）「〇〇ってどうなの？」「何で〇〇したの？」
-3. 自分の体験を語る人（20〜40文字）「俺も昔〇〇したことあるけど〜」「私の場合は〜だったな」
-4. 長文で熱く語る人（30〜50文字）体験談や意見を詳しく書く
-5. ボケ・ネタ担当（5〜15文字）面白いツッコミやボケ
+【今回の選抜視聴者リスト（詳細プロフィール）】
+{personas_prompt}
 
-【ルール】
-- userは日本人名（たける、ゆき、けんた、みさき、りょう等）
-- 配信者の発言をちゃんと理解して、その話題に沿った返答をする
-- 長文の人は本当に長く書く（短くしない）
-- 配信者が誰かの名前を呼んでいたら、その人が必ず1人目で返答する
-- 前のターンにいた視聴者は同じ名前で再登場してもOK
+【生成ルール】
+1. 出力は必ずJSON形式 (comments配列) にすること。
+2. 上記リストにいる全員分のコメントを1つずつ生成すること。
+3. "user" はリストの名前をそのまま使うこと。
+4. "text" はそのキャラの性格・口調を完全に再現すること。
+   - 興味のない話題には適当に反応したり、自分の興味のある話題に無理やり繋げてもよい。
+   - アンチや指示厨は、少し棘のある言い方をすること。
+5. "color" はJSONには含めなくてよい。
+6. 文脈を読み、配信者の発言に対して自然な反応をすること。
 
-【出力例】配信者「彼女彼氏おる人どんくらいいる？」
-{{"comments":[
-{{"user":"たける","text":"いるよ","color":"text-blue-400"}},
-{{"user":"ゆき","text":"みんなどうやって出会ったの？","color":"text-green-400"}},
-{{"user":"けんた","text":"俺は去年マッチングアプリで出会って付き合い始めた","color":"text-purple-400"}},
-{{"user":"まさき","text":"自分は高校の時から付き合ってる彼女いるけど、最近ちょっと倦怠期かもしれん...みんなどう乗り越えてる？","color":"text-orange-400"}},
-{{"user":"りな","text":"ぼっちです泣","color":"text-pink-400"}}
-]}}
+【出力例】
+{{
+  "comments": [
+    {{ "user": "草野", "text": "噛んだｗｗｗ" }},
+    {{ "user": "博士", "text": "今の現象はラグではなく仕様ですね" }}
+  ]
+}}
+"#);
 
-【配信者の発言】「{message}」"#, context = context, message = message);
+        let user_message = format!("【配信者の発言】\n「{}」\n\n{}", message, context);
 
         let request_body = GroqRequest {
             model: "llama-3.3-70b-versatile".to_string(),
             messages: vec![
-                Message {
-                    role: "system".to_string(),
-                    content: "YouTube配信の視聴者コメント生成AI。JSON形式で出力してください。自然な日本語で、5人それぞれ違うタイプのコメントを生成。".to_string(),
-                },
-                Message {
-                    role: "user".to_string(),
-                    content: prompt,
-                },
+                Message { role: "system".to_string(), content: system_prompt },
+                Message { role: "user".to_string(), content: user_message },
             ],
-            response_format: ResponseFormat {
-                format_type: "json_object".to_string(),
-            },
+            response_format: ResponseFormat { format_type: "json_object".to_string() },
             max_tokens: 1024,
         };
 
         tracing::info!("[Chat API] Calling Groq API...");
 
-        let response = self
-            .client
+        let response = self.client
             .post("https://api.groq.com/openai/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
@@ -167,40 +144,40 @@ impl GroqClient {
             .send()
             .await?;
 
-        // ★★★ ここから修正：詳細ログ付きエラーハンドリング ★★★
-
         if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            tracing::error!("[Chat API] Groq API error ({}): {}", status, error_text);
-            anyhow::bail!("Groq API returned error: {}", error_text);
+             let status = response.status();
+             let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+             tracing::error!("[Chat API] Groq API error ({}): {}", status, error_text);
+             anyhow::bail!("Groq API returned error: {}", error_text);
         }
 
-        // 1. 生のレスポンスボディをテキストとして取得してログに出す
         let response_text_raw = response.text().await?;
-        tracing::info!("[Chat API] Raw response from Groq: {}", response_text_raw);
+        tracing::info!("[Chat API] Raw response: {}", response_text_raw);
 
-        // 2. 外側のJSON (GroqResponse) をパース
         let groq_response: GroqResponse = serde_json::from_str(&response_text_raw)
-            .map_err(|e| {
-                tracing::error!("[Chat API] JSON Parse Error (GroqResponse): {}", e);
-                anyhow::anyhow!("Failed to parse GroqResponse: {}", e)
-            })?;
+            .map_err(|e| anyhow::anyhow!("Failed to parse GroqResponse: {}", e))?;
         
-        // 3. 中身のJSON文字列 (content) を取り出す
         let content_json_str = &groq_response.choices[0].message.content;
-        tracing::info!("[Chat API] Content JSON string: {}", content_json_str);
-
-        // 4. 中身のJSON (CommentsWrapper) をパース
+        
         let wrapper: CommentsWrapper = serde_json::from_str(content_json_str)
-            .map_err(|e| {
-                tracing::error!("[Chat API] JSON Parse Error (CommentsWrapper): {}", e);
-                // エラーの原因がわかりやすいように、パースしようとした文字列もエラーに含める
-                anyhow::anyhow!("Failed to parse content JSON. Input: '{}', Error: {}", content_json_str, e)
-            })?;
+            .map_err(|e| anyhow::anyhow!("Failed to parse content JSON: {}", e))?;
 
-        tracing::info!("[Chat API] Successfully parsed {} comments", wrapper.comments.len());
+        // 色情報の復元
+        let mut final_comments = Vec::new();
+        for raw in wrapper.comments {
+            let color = active_personas.iter()
+                .find(|p| p.name == raw.user)
+                .map(|p| p.color.clone())
+                .unwrap_or_else(|| "text-slate-400".to_string());
 
-        Ok(wrapper.comments)
+            final_comments.push(ChatComment {
+                user: raw.user,
+                text: raw.text,
+                color,
+            });
+        }
+
+        tracing::info!("[Chat API] Successfully generated {} comments", final_comments.len());
+        Ok(final_comments)
     }
 }

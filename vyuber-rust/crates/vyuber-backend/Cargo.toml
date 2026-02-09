@@ -50,5 +50,9 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
 
+# 形態素解析 (日本語テキスト補完)
+lindera = { version = "2", features = ["embed-ipadic"] }
+strsim = "0.11"
+
 # Shared Types
 vyuber-shared = { workspace = true }

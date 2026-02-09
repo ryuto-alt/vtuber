@@ -4,6 +4,8 @@ use whisper_rs::{
     FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperState,
 };
 
+use super::text_corrector::TextCorrector;
+
 /// no_speech_probability がこの値を超えたセグメントは幻覚とみなして無視
 const NO_SPEECH_THRESHOLD: f32 = 0.5;
 
@@ -37,6 +39,8 @@ pub struct WhisperService {
     ctx: Arc<WhisperContext>,
     /// State を再利用して初期化コストを削減
     state: Arc<Mutex<Option<WhisperState>>>,
+    /// 形態素解析ベースのテキスト補完
+    corrector: Arc<TextCorrector>,
 }
 
 // WhisperState は Send ではないが、Mutex で排他アクセスするため安全
@@ -58,9 +62,14 @@ impl WhisperService {
 
         tracing::info!("Whisper model loaded: {}", model_path);
 
+        let corrector = TextCorrector::new()
+            .map_err(|e| format!("Failed to init text corrector: {}", e))?;
+        tracing::info!("Text corrector initialized (lindera + IPADIC)");
+
         Ok(Self {
             ctx: Arc::new(ctx),
             state: Arc::new(Mutex::new(None)),
+            corrector: Arc::new(corrector),
         })
     }
 
@@ -112,8 +121,8 @@ impl WhisperService {
     pub fn transcribe(&self, pcm_data: &[f32]) -> Result<String, String> {
         let mut state = self.get_or_create_state()?;
 
-        // BeamSearch: Greedy より高精度（beam_size=3 で速度と精度のバランス）
-        let mut params = FullParams::new(SamplingStrategy::BeamSearch { beam_size: 3, patience: 1.0 });
+        // BeamSearch: beam_size=5 で不明瞭な発話でも正解候補を探索しやすくする
+        let mut params = FullParams::new(SamplingStrategy::BeamSearch { beam_size: 5, patience: 1.2 });
         params.set_language(Some("ja"));
         params.set_print_special(false);
         params.set_print_progress(false);
@@ -125,8 +134,20 @@ impl WhisperService {
         params.set_suppress_nst(true);
         params.set_n_threads(N_THREADS);
 
-        // 日本語認識の精度向上: 初期プロンプトで言語ヒントを与える
-        params.set_initial_prompt("こんにちは、配信を始めます。");
+        // 温度設定: 確定的デコード → 不確実時に温度を上げてリトライ
+        params.set_temperature(0.0);
+        params.set_temperature_inc(0.2);
+        // エントロピー閾値: 高エントロピーセグメントを再デコード
+        params.set_entropy_thold(2.4);
+        // 低信頼度セグメントをフィルタ
+        params.set_logprob_thold(-1.0);
+
+        // VTuber配信ドメインの語彙を含めて認識精度を向上
+        params.set_initial_prompt(
+            "こんにちは、配信を始めます。チャット、スパチャ、コメント、ありがとう。\
+             ゲーム実況、雑談配信、歌枠、同時視聴。スーパーチャット、メンバーシップ。\
+             VTuber、ライブ配信中です。"
+        );
 
         let result = state.full(params, pcm_data);
         if let Err(e) = result {
@@ -163,6 +184,13 @@ impl WhisperService {
         }
 
         self.return_state(state);
-        Ok(result)
+
+        // テキスト補完: 未知語を形態素解析ベースで補正
+        let corrected = self.corrector.correct(&result)?;
+        if corrected != result {
+            tracing::info!("Text corrected: '{}' -> '{}'", result, corrected);
+        }
+
+        Ok(corrected)
     }
 }

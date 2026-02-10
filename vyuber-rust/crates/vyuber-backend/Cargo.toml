@@ -21,8 +21,9 @@ tokio = { workspace = true }
 futures = "0.3"
 
 # Whisper (ローカル音声認識)
-# GPU加速: CUDA Toolkit インストール後に features = ["cuda"] を追加
-whisper-rs = "0.15"
+# GPU加速有効化: NVIDIA GPU (GTX 1060以上) で10-30倍高速化
+# CUDA Toolkit 11.x/12.x が必要（https://developer.nvidia.com/cuda-downloads）
+whisper-rs = { version = "0.15", features = ["cuda"] }
 
 # RTMP (placeholder)
 tokio-util = { version = "0.7", features = ["io"] }
@@ -49,6 +50,10 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
+
+# 形態素解析 (日本語テキスト補完)
+lindera = { version = "2", features = ["embed-ipadic"] }
+strsim = "0.11"
 
 # Shared Types
 vyuber-shared = { workspace = true }

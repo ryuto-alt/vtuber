@@ -7,14 +7,18 @@ echo.
 set MODEL_DIR=%~dp0models
 if not exist "%MODEL_DIR%" mkdir "%MODEL_DIR%"
 
-echo [1] ggml-tiny.bin   (75MB)  - 最速・精度低
-echo [2] ggml-base.bin   (142MB) - バランス型
-echo [3] ggml-small.bin  (466MB) - 高精度 (推奨 / GPU使用時)
-echo [4] ggml-medium.bin (1.5GB) - 最高精度・要GPU
+echo [1] ggml-tiny.bin   (75MB)  - 最速・低精度 (非推奨)
+echo [2] ggml-base.bin   (142MB) - バランス型 (CPU環境)
+echo [3] ggml-small.bin  (466MB) - 高精度 (推奨：CPU/GPU両対応)
+echo [4] ggml-medium.bin (1.5GB) - 最高精度 (GPU専用：GTX 1060以上)
 echo.
-set /p CHOICE="番号を選んでください (デフォルト: 3): "
+echo 推奨設定:
+echo   CPU専用    : [2] base または [3] small
+echo   GPU (CUDA) : [4] medium (推奨)
+echo.
+set /p CHOICE="番号を選んでください (デフォルト: 4): "
 
-if "%CHOICE%"=="" set CHOICE=3
+if "%CHOICE%"=="" set CHOICE=4
 
 if "%CHOICE%"=="1" (
     set MODEL_NAME=ggml-tiny.bin

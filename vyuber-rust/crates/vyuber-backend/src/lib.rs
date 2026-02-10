@@ -30,7 +30,7 @@ pub async fn start_server() -> Result<(), Box<dyn std::error::Error + Send + Syn
 
     // Whisperモデルをロード
     let model_path = std::env::var("WHISPER_MODEL_PATH")
-        .unwrap_or_else(|_| "models/ggml-small.bin".to_string());
+        .unwrap_or_else(|_| "models/ggml-medium.bin".to_string());
     let whisper_service = Arc::new(
         WhisperService::new(&model_path)
             .expect("Failed to load Whisper model. Run download-model.bat first.")

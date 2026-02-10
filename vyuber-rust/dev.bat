@@ -50,23 +50,29 @@ if not exist "C:\Program Files\LLVM\bin\libclang.dll" (
 )
 set "LIBCLANG_PATH=C:\Program Files\LLVM\bin"
 
-:: Whisper モデルチェック（tinyを優先、なければbaseを探す）
-if exist "%ROOT_DIR%models\ggml-tiny.bin" (
-    set "MODEL_PATH=%ROOT_DIR%models\ggml-tiny.bin"
+:: Whisper モデルチェック（medium優先 → small → base → ダウンロード）
+if exist "%ROOT_DIR%models\ggml-medium.bin" (
+    set "MODEL_PATH=%ROOT_DIR%models\ggml-medium.bin"
+    echo Using medium model.
+    goto model_ready
+)
+if exist "%ROOT_DIR%models\ggml-small.bin" (
+    set "MODEL_PATH=%ROOT_DIR%models\ggml-small.bin"
+    echo Using small model. For better accuracy, run download-model.bat and select medium.
     goto model_ready
 )
 if exist "%ROOT_DIR%models\ggml-base.bin" (
     set "MODEL_PATH=%ROOT_DIR%models\ggml-base.bin"
-    echo Using existing base model.
+    echo Using base model. For better accuracy, run download-model.bat and select medium.
     goto model_ready
 )
 
-:: モデルが無いのでダウンロード
+:: モデルが無いのでダウンロード（medium推奨）
 echo.
-echo Whisper model not found. Downloading ggml-tiny.bin (75MB)...
+echo Whisper model not found. Downloading ggml-medium.bin (1.5GB)...
 if not exist "%ROOT_DIR%models" mkdir "%ROOT_DIR%models"
-set "MODEL_PATH=%ROOT_DIR%models\ggml-tiny.bin"
-curl -L -o "%MODEL_PATH%" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+set "MODEL_PATH=%ROOT_DIR%models\ggml-medium.bin"
+curl -L -o "%MODEL_PATH%" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin"
 if %ERRORLEVEL% neq 0 (
     echo ERROR: Model download failed!
     pause

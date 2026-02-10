@@ -12,6 +12,33 @@ const MIN_CORRECTION_LENGTH: usize = 3;
 /// 音韻候補のマッチに許容する最大編集距離
 const MAX_EDIT_DISTANCE: usize = 1;
 
+/// フィラー（間投詞・つなぎ言葉）のリスト
+/// 配信では自然だが、文字起こしでは冗長なため除去対象
+const FILLERS: &[&str] = &[
+    "あー",
+    "えー",
+    "うー",
+    "んー",
+    "ええと",
+    "えっと",
+    "あのー",
+    "その",
+    "なんか",
+    "まあ",
+    "ちょっと",
+];
+
+/// 言い直しパターン（前の発言を取り消す表現）
+const CORRECTION_PATTERNS: &[&str] = &[
+    "じゃなくて",
+    "っていうか",
+    "ていうか",
+    "というか",
+    "じゃなく",
+    "ではなく",
+    "ではなくて",
+];
+
 /// VTuber / 配信ドメイン固有の用語辞書
 /// (カタカナ読み, 正しい表記)
 const DOMAIN_CORRECTIONS: &[(&str, &str)] = &[
@@ -55,9 +82,16 @@ impl TextCorrector {
             return Ok(String::new());
         }
 
+        // ステップ1: 言い直し検出と修正
+        let text = Self::handle_corrections(text);
+
+        // ステップ2: フィラー除去と繰り返し統合
+        let text = Self::remove_fillers_and_repetitions(&text);
+
+        // ステップ3: 形態素解析による未知語補完
         let mut tokens = self
             .tokenizer
-            .tokenize(text)
+            .tokenize(&text)
             .map_err(|e| format!("Tokenization failed: {}", e))?;
 
         let mut result = String::with_capacity(text.len());
@@ -78,6 +112,63 @@ impl TextCorrector {
         }
 
         Ok(result)
+    }
+
+    /// 言い直し検出: 「AじゃなくてB」→「B」に変換
+    /// 例: 「今日はじゃなくて明日は」→「明日は」
+    fn handle_corrections(text: &str) -> String {
+        let mut result = text.to_string();
+
+        for pattern in CORRECTION_PATTERNS {
+            // パターンの前の文脈を削除
+            if let Some(pos) = result.find(pattern) {
+                // パターンより前の句読点や助詞で区切る
+                let before = result[..pos].to_string();
+                let after = result[pos + pattern.len()..].to_string();
+
+                // 直前の区切り（句読点、は、が、を、に等）を探す
+                let cut_pos = before
+                    .rfind(&['、', '。', 'は', 'が', 'を', 'に', 'で', 'と'][..])
+                    .map(|p| p + 1)
+                    .unwrap_or(0);
+
+                tracing::debug!("Correction detected: '{}' removed", &before[cut_pos..pos]);
+                result = format!("{}{}", &before[..cut_pos], after);
+            }
+        }
+
+        result
+    }
+
+    /// フィラー除去と繰り返し統合
+    /// 例: 「えーっと、えっと、今日は」→「今日は」
+    ///     「あのー、その、なんか」→「」
+    fn remove_fillers_and_repetitions(text: &str) -> String {
+        let mut words: Vec<&str> = text
+            .split(&['、', '。', ' ', '　'][..])
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        // フィラー除去
+        words.retain(|word| {
+            let trimmed = word.trim();
+            !FILLERS.iter().any(|filler| trimmed == *filler)
+        });
+
+        // 連続する同じ単語を統合（「そうそう」→「そう」）
+        let mut deduplicated = Vec::new();
+        let mut prev: Option<&str> = None;
+
+        for word in words {
+            if Some(word) != prev {
+                deduplicated.push(word);
+                prev = Some(word);
+            } else {
+                tracing::debug!("Repetition removed: '{}'", word);
+            }
+        }
+
+        deduplicated.join("")
     }
 
     /// トークンが辞書に存在しない未知語かどうかを判定

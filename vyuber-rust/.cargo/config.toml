@@ -1,0 +1,7 @@
+[env]
+# CUDA 13.1 + VS 2026 対応: nvccのバージョンチェックを回避
+NVCC_PREPEND_FLAGS = "--allow-unsupported-compiler"
+CUDAFLAGS = "-allow-unsupported-compiler"
+CMAKE_CUDA_FLAGS = "-allow-unsupported-compiler"
+# RTX 5060 (Blackwell, sm_120)
+CUDAARCHS = "120"

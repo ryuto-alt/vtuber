@@ -20,7 +20,7 @@ const ENERGY_WINDOW: usize = SAMPLE_RATE * 3 / 10;
 const ENERGY_THRESHOLD: f32 = 0.003;
 
 /// 喋り終わり判定: この秒数の沈黙が続いたら文字起こしを確定する
-const SILENCE_TIMEOUT_SECS: f32 = 2.0;
+const SILENCE_TIMEOUT_SECS: f32 = 2.5;
 /// 沈黙タイムアウトのサンプル数
 const SILENCE_TIMEOUT_SAMPLES: usize = (SAMPLE_RATE as f32 * SILENCE_TIMEOUT_SECS) as usize;
 

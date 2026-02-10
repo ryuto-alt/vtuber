@@ -24,6 +24,9 @@ Thumbs.db
 media/
 
 
+# Claude Code
+.claude/
+
 # MCP and Serena config (contains secrets)
 .mcp.json
 .serena/

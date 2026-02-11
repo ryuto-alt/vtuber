@@ -1,11 +1,9 @@
 use axum::{Json, http::StatusCode, extract::State};
 use vyuber_shared::chat::{ChatComment, ChatRequest, ChatResponse, ChatMode};
 use crate::services::groq::GroqClient;
+use crate::orchestrator::Orchestrator;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::api::personas::Persona;
-use rand::seq::SliceRandom;
-use rand::Rng;
 
 #[derive(Clone)]
 pub struct ConversationTurn {
@@ -16,16 +14,13 @@ pub struct ConversationTurn {
 #[derive(Clone)]
 pub struct ChatHistory {
     pub turns: Arc<Mutex<Vec<ConversationTurn>>>,
-    pub main_roster: Vec<Persona>,
-    pub gaya_roster: Vec<Persona>,
+    // ロスター管理は Orchestrator に移動したため削除
 }
 
 impl ChatHistory {
     pub fn new() -> Self {
         Self {
             turns: Arc::new(Mutex::new(Vec::with_capacity(3))),
-            main_roster: Persona::create_main_roster(),
-            gaya_roster: Persona::create_gaya_roster(),
         }
     }
 
@@ -59,49 +54,14 @@ pub async fn handle_chat(
     tracing::info!("[Chat API] Mode: {:?}, Message: {}", req.mode, req.message);
 
     let client = GroqClient::from_env();
+    
+    // オーケストレーターを初期化（ここでペルソナリストも生成される）
+    let orchestrator = Orchestrator::new(); 
+    
     let last_comments = history.get_last_comments().await;
 
-    // モードごとの設定
-    let (active_personas, model_id, system_instruction) = match req.mode {
-        ChatMode::Anchor => {
-            // ■ 70B (Anchor): 固定ファン
-            let mut rng = rand::thread_rng();
-            let count = rng.gen_range(3..=5);
-            let selected = history.main_roster
-                .choose_multiple(&mut rng, count)
-                .cloned()
-                .collect::<Vec<_>>();
-            
-            (
-                selected, 
-                "llama-3.3-70b-versatile", // ★指定されたモデル
-                r#"
-あなたはYouTubeライブ配信の「固定ファン」です。
-提示されたペルソナになりきり、配信者の発言に対して文脈を踏まえたコメントをしてください。
-単なる反応だけでなく、質問、感想、ツッコミなど多様な発言を心がけてください。
-"#
-            )
-        },
-        ChatMode::Swarm => {
-            // ■ 8B (Swarm): ガヤ
-            let mut rng = rand::thread_rng();
-            let count = rng.gen_range(5..=8);
-            let selected = history.gaya_roster
-                .choose_multiple(&mut rng, count)
-                .cloned()
-                .collect::<Vec<_>>();
-
-            (
-                selected,
-                "llama-3.1-8b-instant", // 8B固定
-                r#"
-あなたはライブ配信の「ガヤ」です。
-配信者の言葉に対し、反射的に短いリアクションだけを返してください。
-長い文章は禁止です。「ｗｗｗ」「草」「８８８８」「なるほど」「！？」などの短文のみ許可します。
-"#
-            )
-        }
-    };
+    // Orchestratorに選抜と設定を委譲
+    let (active_personas, model_id, system_instruction) = orchestrator.dispatch(req.mode.clone());
 
     match client.generate_comments_with_context(
         &req.message, 
@@ -111,7 +71,7 @@ pub async fn handle_chat(
         system_instruction
     ).await {
         Ok(comments) => {
-            // 履歴保存はAnchorのみ（文脈維持のため）
+            // Anchorモード（70B）の時だけ文脈履歴を更新する
             if req.mode == ChatMode::Anchor {
                 history.add_turn(req.message.clone(), comments.clone()).await;
             }

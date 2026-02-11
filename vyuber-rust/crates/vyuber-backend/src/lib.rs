@@ -14,6 +14,7 @@ pub mod config;
 pub mod services;
 pub mod streaming;
 pub mod mediamtx;
+pub mod orchestrator;
 
 use api::chat::ChatHistory;
 use services::whisper::WhisperService;

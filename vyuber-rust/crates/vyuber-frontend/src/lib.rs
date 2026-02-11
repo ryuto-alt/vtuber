@@ -847,9 +847,11 @@ fn ChatPanel(
                                     // バッジ (70B/8B)
                                     let badge = if is_self {
                                         view! { <span class="hidden"></span> }.into_any()
-                                    } else if color.contains("emerald") {
+                                    } else if color.contains("emerald") || color.contains("green") || color.contains("orange-300") || color.contains("yellow-500") || color.contains("pink-300") || color.contains("blue-300") || color.contains("gray-500") {
+                                        // ガヤ (Swarm) 系カラー
                                         view! { <span class="ml-1.5 px-1 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-500 text-[9px] font-mono border border-emerald-500/20 leading-none">"8B"</span> }.into_any()
                                     } else {
+                                        // 固定ファン (Anchor) 系
                                         view! { <span class="ml-1.5 px-1 py-0.5 rounded-[2px] bg-blue-500/10 text-blue-400 text-[9px] font-mono border border-blue-500/20 leading-none">"70B"</span> }.into_any()
                                     };
 

@@ -2,7 +2,7 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use vyuber_shared::chat::ChatComment;
-use crate::api::personas::Persona;
+use vyuber_shared::agent::{Persona, AgentTier};
 
 pub struct GroqClient {
     api_key: String,
@@ -74,16 +74,22 @@ impl GroqClient {
         message: &str, 
         last_comments: Option<&[ChatComment]>,
         active_personas: &[Persona],
-        model_id: &str,           // ★追加
-        system_instruction: &str, // ★追加
+        model_id: &str,
+        system_instruction: &str,
     ) -> Result<Vec<ChatComment>> {
-        tracing::info!("[Chat API] Generating comments for message: {}", message);
-
+        
+        // ★修正: Tierに応じたプロンプト構築
         let personas_prompt = active_personas.iter().map(|p| {
-            format!(
-                "- 名前: {}\n  属性: {} / {} / {}\n  関係: {}\n  興味: {}\n  性格・口調: {}", 
-                p.name, p.age, p.job, p.location, p.relationship, p.interest, p.tone
-            )
+            match p.tier {
+                AgentTier::Anchor => format!(
+                    "- 名前: {}\n  属性/詳細: {}\n  口調: {}", 
+                    p.name, p.bio, p.tone
+                ),
+                AgentTier::Swarm => format!(
+                    "- 名前: {}\n  反応パターン: {}", 
+                    p.name, p.tone
+                ),
+            }
         }).collect::<Vec<_>>().join("\n\n");
 
         let context = if let Some(comments) = last_comments {
@@ -103,12 +109,13 @@ impl GroqClient {
 
 【出力ルール】
 1. 必ずJSON形式 `{{ "comments": [ {{ "user": "名前", "text": "発言" }} ... ] }}` で出力すること。
-2. リスト内の演者からランダムに、あるいは全員分生成すること。
-3. "user" はリストの名前を正確に使うこと。
+2. "user" はリストの名前を正確に使うこと。
 "#, system_instruction = system_instruction, personas_prompt = personas_prompt);
 
         let user_message = format!("【配信者の発言】\n「{}」\n\n{}", message, context);
 
+        // ... (APIリクエスト作成、送信部分は変更なし) ...
+        
         let request_body = GroqRequest {
             model: model_id.to_string(),
             messages: vec![
@@ -119,8 +126,6 @@ impl GroqClient {
             max_tokens: 1024,
         };
 
-        tracing::info!("[Chat API] Calling Groq API...");
-
         let response = self.client
             .post("https://api.groq.com/openai/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", self.api_key))
@@ -129,6 +134,7 @@ impl GroqClient {
             .send()
             .await?;
 
+        // ... (エラーハンドリング) ...
         if !response.status().is_success() {
              let status = response.status();
              let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
@@ -137,27 +143,20 @@ impl GroqClient {
         }
 
         let response_text_raw = response.text().await?;
-        tracing::info!("[Chat API] Raw response: {}", response_text_raw);
-
         let groq_response: GroqResponse = serde_json::from_str(&response_text_raw)
             .map_err(|e| anyhow::anyhow!("Failed to parse GroqResponse: {}", e))?;
         
         let content_json_str = &groq_response.choices[0].message.content;
-        
         let wrapper: CommentsWrapper = serde_json::from_str(content_json_str)
             .map_err(|e| anyhow::anyhow!("Failed to parse content JSON: {}", e))?;
 
+        // 色付けロジック (Tierに基づき決定)
         let mut final_comments = Vec::new();
         for raw in wrapper.comments {
             let persona = active_personas.iter().find(|p| p.name == raw.user);
             
-            // ★修正: シンプルな色クラスのみを返す
             let color_class = if let Some(p) = persona {
-                if p.is_anchor {
-                    p.color.clone() // 70B: ペルソナ定義色
-                } else {
-                    "text-emerald-500".to_string() // 8B: 緑
-                }
+                p.color_class.clone() // 定義された色クラスをそのまま使う
             } else {
                 "text-slate-400".to_string()
             };
@@ -169,7 +168,6 @@ impl GroqClient {
             });
         }
 
-        tracing::info!("[Chat API] Successfully generated {} comments", final_comments.len());
         Ok(final_comments)
     }
 }

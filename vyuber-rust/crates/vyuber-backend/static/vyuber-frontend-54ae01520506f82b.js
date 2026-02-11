@@ -811,58 +811,32 @@ function __wbg_get_imports() {
             console.warn(arg0);
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-54ae01520506f82b.js
             // Cast intrinsic for `Closure(Closure { dtor_idx: 655, function: Function { arguments: [NamedExternref("AudioProcessingEvent")], shim_idx: 337, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h85d1b4c2686b2cbc, wasm_bindgen__convert__closures_____invoke__ha7901b698a5abb90);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { dtor_idx: 811, function: Function { arguments: [], shim_idx: 812, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-========
-            // Cast intrinsic for `Closure(Closure { dtor_idx: 118, function: Function { arguments: [NamedExternref("AudioProcessingEvent")], shim_idx: 593, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h4d3cbffbc8580045, wasm_bindgen__convert__closures_____invoke__hcf788eab0fcbba88);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { dtor_idx: 793, function: Function { arguments: [], shim_idx: 794, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
->>>>>>>> rust:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-37a1752c04dcc874.js
             const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h4c8d9d79afa98448, wasm_bindgen__convert__closures_____invoke__h61277a937bc810bd);
             return ret;
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-54ae01520506f82b.js
             // Cast intrinsic for `Closure(Closure { dtor_idx: 856, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 857, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__hde82d7f4ca1fa6d0, wasm_bindgen__convert__closures_____invoke__h75c73c7fc3e4cd6d);
             return ret;
         },
         __wbindgen_cast_0000000000000004: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { dtor_idx: 878, function: Function { arguments: [], shim_idx: 879, ret: Unit, inner_ret: Some(Unit) }, mutable: false }) -> Externref`.
-========
-            // Cast intrinsic for `Closure(Closure { dtor_idx: 854, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 855, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__he7f747636c02e45e, wasm_bindgen__convert__closures_____invoke__hbebad9d0b00c9266);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000004: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { dtor_idx: 876, function: Function { arguments: [], shim_idx: 877, ret: Unit, inner_ret: Some(Unit) }, mutable: false }) -> Externref`.
->>>>>>>> rust:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-37a1752c04dcc874.js
             const ret = makeClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h165693ab9b86d6ae, wasm_bindgen__convert__closures_____invoke__h9cfa7077cdfbedca);
             return ret;
         },
         __wbindgen_cast_0000000000000005: function(arg0, arg1) {
-<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-54ae01520506f82b.js
             // Cast intrinsic for `Closure(Closure { dtor_idx: 913, function: Function { arguments: [NamedExternref("Event")], shim_idx: 914, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-========
-            // Cast intrinsic for `Closure(Closure { dtor_idx: 911, function: Function { arguments: [NamedExternref("Event")], shim_idx: 912, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
->>>>>>>> rust:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-37a1752c04dcc874.js
             const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__h9fefa97d8b258e48, wasm_bindgen__convert__closures_____invoke__h8e21fa3ecaf8c3cf);
             return ret;
         },
         __wbindgen_cast_0000000000000006: function(arg0, arg1) {
-<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-54ae01520506f82b.js
             // Cast intrinsic for `Closure(Closure { dtor_idx: 969, function: Function { arguments: [Externref], shim_idx: 970, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-========
-            // Cast intrinsic for `Closure(Closure { dtor_idx: 967, function: Function { arguments: [Externref], shim_idx: 968, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
->>>>>>>> rust:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-37a1752c04dcc874.js
             const ret = makeMutClosure(arg0, arg1, wasm.wasm_bindgen__closure__destroy__hcd22c521f5ce47b5, wasm_bindgen__convert__closures_____invoke__h18d62babe3c2bf70);
             return ret;
         },
@@ -901,21 +875,12 @@ function wasm_bindgen__convert__closures_____invoke__h11b2381a315f1102(arg0, arg
     return ret !== 0;
 }
 
-<<<<<<<< HEAD:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-54ae01520506f82b.js
 function wasm_bindgen__convert__closures_____invoke__ha7901b698a5abb90(arg0, arg1, arg2) {
     wasm.wasm_bindgen__convert__closures_____invoke__ha7901b698a5abb90(arg0, arg1, arg2);
 }
 
 function wasm_bindgen__convert__closures_____invoke__h75c73c7fc3e4cd6d(arg0, arg1, arg2) {
     wasm.wasm_bindgen__convert__closures_____invoke__h75c73c7fc3e4cd6d(arg0, arg1, arg2);
-========
-function wasm_bindgen__convert__closures_____invoke__hcf788eab0fcbba88(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__hcf788eab0fcbba88(arg0, arg1, arg2);
-}
-
-function wasm_bindgen__convert__closures_____invoke__hbebad9d0b00c9266(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__hbebad9d0b00c9266(arg0, arg1, arg2);
->>>>>>>> rust:vyuber-rust/crates/vyuber-backend/static/vyuber-frontend-37a1752c04dcc874.js
 }
 
 function wasm_bindgen__convert__closures_____invoke__h8e21fa3ecaf8c3cf(arg0, arg1, arg2) {

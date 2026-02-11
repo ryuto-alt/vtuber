@@ -59,3 +59,7 @@ strsim = "0.11"
 vyuber-shared = { workspace = true }
 
 rand = "0.8"
+
+[features]
+default = ["cuda"]
+cuda = []

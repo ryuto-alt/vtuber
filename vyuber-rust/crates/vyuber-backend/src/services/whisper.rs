@@ -15,7 +15,7 @@ const N_THREADS: i32 = 4;
 /// Beam探索のビーム幅（GPU使用時は高精度モード）
 /// CPU: 5-6, GPU: 8-10 推奨
 const BEAM_SIZE_CPU: i32 = 6;
-const BEAM_SIZE_GPU: i32 = 10;
+const BEAM_SIZE_GPU: i32 = 8;
 
 /// best_of: 複数候補から最良を選択（精度向上）
 const BEST_OF: i32 = 5;

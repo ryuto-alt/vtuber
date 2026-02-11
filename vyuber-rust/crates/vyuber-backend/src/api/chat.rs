@@ -1,12 +1,11 @@
 use axum::{Json, http::StatusCode, extract::State};
-use serde::{Deserialize, Serialize};
-use vyuber_shared::chat::ChatComment;
+use vyuber_shared::chat::{ChatComment, ChatRequest, ChatResponse, ChatMode};
 use crate::services::groq::GroqClient;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::api::personas::Persona;
 use rand::seq::SliceRandom;
-use rand::Rng; // 追加: 乱数生成用
+use rand::Rng;
 
 #[derive(Clone)]
 pub struct ConversationTurn {
@@ -17,8 +16,8 @@ pub struct ConversationTurn {
 #[derive(Clone)]
 pub struct ChatHistory {
     pub turns: Arc<Mutex<Vec<ConversationTurn>>>,
-    pub main_roster: Vec<Persona>, // メイン層
-    pub gaya_roster: Vec<Persona>, // ガヤ層
+    pub main_roster: Vec<Persona>,
+    pub gaya_roster: Vec<Persona>,
 }
 
 impl ChatHistory {
@@ -47,69 +46,82 @@ impl ChatHistory {
     }
 }
 
-#[derive(Deserialize)]
-pub struct ChatRequest {
-    pub message: String,
-}
-
-#[derive(Serialize)]
-pub struct ChatResponse {
-    pub comments: Vec<ChatComment>,
-}
-
-#[derive(Serialize)]
+#[derive(serde::Serialize)]
 pub struct ErrorResponse {
     pub error: String,
     pub details: Option<String>,
 }
 
-/// POST /api/chat
 pub async fn handle_chat(
     State(history): State<ChatHistory>,
     Json(req): Json<ChatRequest>,
 ) -> Result<Json<ChatResponse>, (StatusCode, Json<ErrorResponse>)> {
-    tracing::info!("[Chat API] Received message: {}", req.message);
-
-    // ★修正: メイン5人 + ガヤ数人を選出する
-    let active_personas: Vec<Persona> = {
-        let mut rng = rand::thread_rng();
-        
-        // 1. メイン層から必ず5人選ぶ
-        let mut selected = history.main_roster
-            .choose_multiple(&mut rng, 5)
-            .cloned()
-            .collect::<Vec<_>>();
-
-        // 2. ガヤ層からランダムに 2〜5人 選ぶ
-        let gaya_count = rng.gen_range(2..=5);
-        let gaya = history.gaya_roster
-            .choose_multiple(&mut rng, gaya_count)
-            .cloned();
-        
-        selected.extend(gaya);
-        selected
-    };
-    
-    // デバッグログ
-    let names: Vec<&str> = active_personas.iter().map(|p| p.name.as_str()).collect();
-    tracing::info!("[Chat API] Selected personas (Total {}): {:?}", active_personas.len(), names);
+    tracing::info!("[Chat API] Mode: {:?}, Message: {}", req.mode, req.message);
 
     let client = GroqClient::from_env();
     let last_comments = history.get_last_comments().await;
 
-    match client.generate_comments_with_context(&req.message, last_comments.as_deref(), &active_personas).await {
+    // モードごとの設定
+    let (active_personas, model_id, system_instruction) = match req.mode {
+        ChatMode::Anchor => {
+            // ■ 70B (Anchor): 固定ファン
+            let mut rng = rand::thread_rng();
+            let count = rng.gen_range(3..=5);
+            let selected = history.main_roster
+                .choose_multiple(&mut rng, count)
+                .cloned()
+                .collect::<Vec<_>>();
+            
+            (
+                selected, 
+                "llama-3.3-70b-versatile", // ★指定されたモデル
+                r#"
+あなたはYouTubeライブ配信の「固定ファン」です。
+提示されたペルソナになりきり、配信者の発言に対して文脈を踏まえたコメントをしてください。
+単なる反応だけでなく、質問、感想、ツッコミなど多様な発言を心がけてください。
+"#
+            )
+        },
+        ChatMode::Swarm => {
+            // ■ 8B (Swarm): ガヤ
+            let mut rng = rand::thread_rng();
+            let count = rng.gen_range(5..=8);
+            let selected = history.gaya_roster
+                .choose_multiple(&mut rng, count)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            (
+                selected,
+                "llama-3.1-8b-instant", // 8B固定
+                r#"
+あなたはライブ配信の「ガヤ」です。
+配信者の言葉に対し、反射的に短いリアクションだけを返してください。
+長い文章は禁止です。「ｗｗｗ」「草」「８８８８」「なるほど」「！？」などの短文のみ許可します。
+"#
+            )
+        }
+    };
+
+    match client.generate_comments_with_context(
+        &req.message, 
+        last_comments.as_deref(), 
+        &active_personas,
+        model_id,
+        system_instruction
+    ).await {
         Ok(comments) => {
-            history.add_turn(req.message, comments.clone()).await;
+            // 履歴保存はAnchorのみ（文脈維持のため）
+            if req.mode == ChatMode::Anchor {
+                history.add_turn(req.message.clone(), comments.clone()).await;
+            }
             Ok(Json(ChatResponse { comments }))
         }
         Err(e) => {
-            tracing::error!("[Chat API] Error details: {}", e);
+            tracing::error!("[Chat API] Error: {}", e);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse {
-                    error: "API Error".to_string(),
-                    details: Some(e.to_string()),
-                }),
+                Json(ErrorResponse { error: "API Error".to_string(), details: Some(e.to_string()) }),
             ))
         }
     }

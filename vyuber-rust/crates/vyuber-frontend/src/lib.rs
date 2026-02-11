@@ -5,10 +5,10 @@ use wasm_bindgen::prelude::*;
 
 mod services;
 mod mic;
-mod state; // ★追加: stateモジュールを読み込む
+mod state; 
 
 use mic::Mic;
-use state::{GlobalState, ChatUser, ChatMessage}; // ★追加: 共有ステートを使う
+use state::{GlobalState, ChatUser, ChatMessage}; 
 
 // JS bindings
 #[wasm_bindgen]
@@ -65,12 +65,10 @@ pub fn main() {
 
 #[component]
 pub fn App() -> impl IntoView {
-    // ★追加: GlobalStateを初期化して配布
     let state = GlobalState::new();
     provide_context(state);
 
     let (current_page, set_current_page) = signal("dashboard");
-    // messagesは state.messages を使うのでローカル変数は削除
     let (is_listening, set_is_listening) = signal(false);
     let (stream_key_info, set_stream_key_info) = signal(None::<StreamKeyResponse>);
     let (show_key_modal, set_show_key_modal) = signal(false);
@@ -87,9 +85,8 @@ pub fn App() -> impl IntoView {
 
     let start_listening = move || {
         set_is_listening.set(true);
-        set_elapsed_seconds.set(0); // タイマーリセット
+        set_elapsed_seconds.set(0); 
 
-        // 自動録画が有効な場合、録画を開始
         if auto_record.get() {
             if let Some(key_info) = stream_key_info.get() {
                 if let Some(key) = key_info.stream_key {
@@ -115,7 +112,6 @@ pub fn App() -> impl IntoView {
 
         set_is_listening.set(false);
 
-        // 録画停止
         if recording {
             if let Some(key_info) = stream_key_info.get() {
                 if let Some(key) = key_info.stream_key {
@@ -132,7 +128,6 @@ pub fn App() -> impl IntoView {
             }
         }
 
-        // メタデータ保存
         spawn_local(async move {
             use chrono::prelude::*;
             let now = Utc::now();
@@ -156,54 +151,53 @@ pub fn App() -> impl IntoView {
         });
     };
 
-    // チャット送信処理（手動入力）
+    // チャット送信処理
     let send_chat = move |text: String| {
         if text.trim().is_empty() { return; }
         
-        // ★修正: GlobalStateに追加
-        state.add_message(ChatUser::Me, text.clone());
+        // 自分の発言
+        state.add_message(ChatUser::Me, text.clone(), "text-slate-200".to_string());
         set_msg_count.update(|c| *c += 1);
 
-        // API送信（バックエンドAIからの返信処理）
-        Effect::new(move |_| {
+        // リクエストA: ガヤ (8B) - 爆速
+        {
             let text = text.clone();
+            let state_swarm = state.clone();
             spawn_local(async move {
-                match services::chat_api::send_message(&text).await {
+                match services::chat_api::send_message(&text, vyuber_shared::chat::ChatMode::Swarm).await {
                     Ok(comments) => {
                         for (i, comment) in comments.into_iter().enumerate() {
-                            // 少し遅延させて自然な感じに
-                            gloo_timers::future::TimeoutFuture::new((500 + i * 400) as u32).await;
+                            gloo_timers::future::TimeoutFuture::new((100 + i * 150) as u32).await;
                             set_msg_count.update(|c| *c += 1);
-                            // ★修正: APIからの返信をGlobalStateに追加
-                            state.add_message(ChatUser::Ai(comment.user), comment.text);
+                            state_swarm.add_message(ChatUser::Ai(comment.user), comment.text, comment.color);
+                        }
+                    }
+                    Err(e) => log::error!("Swarm API error: {}", e),
+                }
+            });
+        }
+
+        // リクエストB: 固定ファン (70B) - 少し遅れて登場
+        {
+            let text = text.clone();
+            let state_anchor = state.clone();
+            spawn_local(async move {
+                match services::chat_api::send_message(&text, vyuber_shared::chat::ChatMode::Anchor).await {
+                    Ok(comments) => {
+                        for (i, comment) in comments.into_iter().enumerate() {
+                            gloo_timers::future::TimeoutFuture::new((1000 + i * 500) as u32).await;
+                            set_msg_count.update(|c| *c += 1);
+                            state_anchor.add_message(ChatUser::Ai(comment.user), comment.text, comment.color);
                         }
                     }
                     Err(e) => {
-                        log::error!("Chat API error: {}", e);
-                        state.add_message(ChatUser::Ai("System".to_string()), "APIエラーが発生しました".to_string());
+                        log::error!("Anchor API error: {}", e);
+                        state_anchor.add_message(ChatUser::Ai("System".to_string()), "APIエラー".to_string(), "text-red-400".to_string());
                     }
                 }
             });
-        });
-    };
-
-    // タイマーカウントアップ
-    Effect::new(move |_| {
-        if is_listening.get() {
-            let interval_id = set_interval(
-                move || {
-                    if is_listening.get() {
-                        set_elapsed_seconds.update(|s| *s += 1);
-                    }
-                },
-                std::time::Duration::from_secs(1),
-            );
-            // クリーンアップはLeptosが自動的に処理
-            interval_id
-        } else {
-            set_interval(|| {}, std::time::Duration::from_secs(3600)) // ダミー
         }
-    });
+    };
 
     view! {
         <Header is_listening=is_listening/>
@@ -232,7 +226,7 @@ pub fn App() -> impl IntoView {
                             elapsed_seconds=elapsed_seconds
                         />
                         <ChatPanel
-                            messages=state.messages // ★修正: GlobalStateのメッセージを渡す
+                            messages=state.messages // GlobalStateのメッセージ
                             chat_input=chat_input
                             set_chat_input=set_chat_input
                             send_chat=send_chat
@@ -258,8 +252,6 @@ pub fn App() -> impl IntoView {
             set_show=set_show_profile_menu
             set_current_page=set_current_page
         />
-        
-        // ★マイクコンポーネント（チャット送信スイッチ付き）
         <Mic />
     }
 }
@@ -473,7 +465,7 @@ fn VideoPreview(
     volume: ReadSignal<f64>,
     set_volume: WriteSignal<f64>,
 ) -> impl IntoView {
-    // ページ読み込み時にプレイヤーを初期化（常時接続、OBSからのデータが来たら自動再生）
+    // ページ読み込み時にプレイヤーを初期化
     Effect::new(move |_| {
         spawn_local(async move {
             gloo_timers::future::TimeoutFuture::new(100).await;
@@ -521,7 +513,7 @@ fn VideoPreview(
                 <span class="px-2 py-1 text-[10px] font-mono font-medium bg-black/80 text-slate-300 rounded border border-white/5 backdrop-blur-md">"6000 Kbps"</span>
             </div>
 
-            // No signal placeholder (JS hides this when video starts playing)
+            // No signal placeholder
             <div id="video-placeholder" class="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-[#050608] z-[5]">
                 <div class="relative">
                     <div class="absolute -inset-4 bg-primary/5 rounded-full blur-xl animate-pulse"></div>
@@ -781,6 +773,7 @@ fn ChatPanel(
     set_chat_input: WriteSignal<String>,
     send_chat: impl Fn(String) + 'static + Copy,
 ) -> impl IntoView {
+    // ... (入力欄ロジックは変更なし) ...
     let (show_emoji_picker, set_show_emoji_picker) = signal(false);
     let emojis = vec!["😀", "😂", "❤️", "👍", "🎉", "🔥", "👏", "🙏", "💯", "✨"];
 
@@ -791,17 +784,13 @@ fn ChatPanel(
             set_chat_input.set(String::new());
         }
     };
-
     let on_send = move |_: web_sys::MouseEvent| { do_send(); };
-
     let on_keydown = move |e: web_sys::KeyboardEvent| {
         if e.key() == "Enter" && !e.shift_key() {
             e.prevent_default();
             do_send();
         }
     };
-
-    // チャットが更新されたら一番下にスクロールする
     let chat_ref = NodeRef::<leptos::html::Div>::new();
     Effect::new(move |_| {
         messages.track();
@@ -815,74 +804,69 @@ fn ChatPanel(
 
     view! {
         <aside class="w-80 border-l border-border-dark bg-surface-dark flex flex-col flex-shrink-0 z-10 shadow-xl">
-            // Header
             <div class="h-14 border-b border-border-dark flex items-center justify-between px-4 bg-surface-dark">
                 <div class="flex items-center gap-2">
                     <h2 class="font-bold text-sm text-white tracking-wide">"ライブチャット"</h2>
-                    <span class="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded font-mono border border-primary/20">"AI管理済み"</span>
+                    <span class="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded font-mono border border-primary/20">"AI"</span>
                 </div>
                 <button class="text-slate-500 hover:text-white transition-colors">
                     <span class="material-symbols-outlined text-lg">"more_horiz"</span>
                 </button>
             </div>
 
-            // Messages
-            <div node_ref=chat_ref class="flex-1 overflow-y-auto p-4 min-h-0 scroll-smooth">
+            <div node_ref=chat_ref class="flex-1 overflow-y-auto p-4 min-h-0 scroll-smooth space-y-4">
                 {move || {
                     let msgs = messages.get();
                     if msgs.is_empty() {
                         view! {
                             <div class="flex flex-col items-center justify-center h-full text-center">
-                                <div class="w-16 h-16 bg-surface-darker rounded-full flex items-center justify-center mb-4 border border-border-dark">
-                                    <span class="material-symbols-outlined text-3xl text-slate-600">"chat_bubble_outline"</span>
-                                </div>
-                                <p class="text-sm text-slate-400 font-medium mb-1">"まだメッセージはありません"</p>
-                                <p class="text-xs text-slate-600 max-w-[200px]">"視聴者のメッセージとAI分析がここに表示されます。"</p>
+                                <p class="text-sm text-slate-500">"メッセージ待ち..."</p>
                             </div>
                         }.into_any()
                     } else {
                         view! {
-                            <div class="space-y-3">
-                                // ★修正: into_iter() で所有権を移動
+                            <div class="flex flex-col gap-3">
                                 {msgs.into_iter().enumerate().map(|(i, msg)| {
-                                    // ★修正: msgを分解して所有権を取り出す（これで参照エラー回避！）
-                                    let ChatMessage { user, text, .. } = msg;
+                                    let ChatMessage { user, text, color, .. } = msg;
 
-                                    // ★修正: すべて String (実体) として扱う
-                                    let (user_name, is_self, _name_color, icon) = match user {
-                                        ChatUser::Me => ("You".to_string(), true, "text-white", "person"),
-                                        ChatUser::Ai(name) => (name, false, "", "smart_toy"), // nameはここで移動される
+                                    let (user_name, icon, is_self) = match user {
+                                        ChatUser::Me => ("You".to_string(), "person", true),
+                                        ChatUser::Ai(name) => (name, "smart_toy", false),
                                     };
 
-                                    let palettes = [
-                                        ("from-blue-500 to-cyan-400", "text-blue-400", "shadow-blue-500/20"),
-                                        ("from-purple-500 to-pink-500", "text-purple-400", "shadow-purple-500/20"),
-                                        ("from-orange-500 to-yellow-500", "text-orange-400", "shadow-orange-500/20"),
-                                        ("from-emerald-500 to-teal-500", "text-emerald-400", "shadow-emerald-500/20"),
-                                    ];
-                                    
-                                    let p_idx = i % palettes.len();
-                                    let (grad, ai_name_col, shadow) = palettes[p_idx];
-
+                                    // アイコン背景
                                     let avatar_cls = if is_self {
-                                        "size-7 rounded-md bg-gradient-to-br from-slate-600 to-slate-500 flex items-center justify-center shrink-0 shadow-sm".to_string()
+                                        "size-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0".to_string()
                                     } else {
-                                        format!("size-7 rounded-md bg-gradient-to-br {} flex items-center justify-center shrink-0 shadow-sm {}", grad, shadow)
+                                        "size-8 rounded-lg bg-surface-darker border border-border-dark flex items-center justify-center shrink-0".to_string()
                                     };
 
-                                    let name_cls = format!("{} font-semibold text-xs", if is_self { "text-white" } else { ai_name_col });
+                                    // 名前色クラス (colorには 'text-blue-400' 等が入っている)
+                                    let name_cls = format!("font-bold text-xs {}", color);
+
+                                    // バッジ (70B/8B)
+                                    let badge = if is_self {
+                                        view! { <span class="hidden"></span> }.into_any()
+                                    } else if color.contains("emerald") {
+                                        view! { <span class="ml-1.5 px-1 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-500 text-[9px] font-mono border border-emerald-500/20 leading-none">"8B"</span> }.into_any()
+                                    } else {
+                                        view! { <span class="ml-1.5 px-1 py-0.5 rounded-[2px] bg-blue-500/10 text-blue-400 text-[9px] font-mono border border-blue-500/20 leading-none">"70B"</span> }.into_any()
+                                    };
 
                                     view! {
-                                        <div class="flex gap-2.5">
+                                        <div class="flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2 duration-300">
                                             <div class=avatar_cls>
-                                                <span class="material-symbols-outlined text-white text-[14px]">
+                                                <span class="material-symbols-outlined text-slate-400 text-[16px]">
                                                     {icon}
                                                 </span>
                                             </div>
-                                            <div class="flex flex-col min-w-0">
-                                                <span class=name_cls>{user_name}</span>
-                                                // ★修正: text (String) をそのまま表示
-                                                <p class="text-slate-300 text-xs leading-relaxed mt-0.5 break-words">{text}</p>
+                                            <div class="flex flex-col min-w-0 flex-1">
+                                                <div class="flex items-center mb-0.5">
+                                                    <span class=name_cls>{user_name}</span>
+                                                    {badge}
+                                                    <span class="ml-auto text-[10px] text-slate-600">"Now"</span>
+                                                </div>
+                                                <p class="text-slate-300 text-sm leading-relaxed break-words whitespace-pre-wrap">{text}</p>
                                             </div>
                                         </div>
                                     }
@@ -893,12 +877,12 @@ fn ChatPanel(
                 }}
             </div>
 
-            // Input
+            // Inputエリア
             <div class="p-4 border-t border-border-dark bg-surface-dark">
                 <div class="relative group">
                     <textarea
                         class="w-full bg-surface-darker text-slate-200 text-sm rounded-xl border border-border-dark focus:border-primary focus:ring-1 focus:ring-primary py-3 pl-4 pr-12 resize-none overflow-hidden placeholder-slate-600 transition-all"
-                        placeholder="視聴者に返信..."
+                        placeholder="コメントを入力..."
                         rows="1"
                         prop:value=move || chat_input.get()
                         on:input=move |e| set_chat_input.set(event_target_value(&e))
@@ -910,40 +894,6 @@ fn ChatPanel(
                     >
                         <span class="material-symbols-outlined text-[16px] block transform rotate-[-45deg]">"send"</span>
                     </button>
-                </div>
-                <div class="flex justify-between items-center mt-3">
-                    <div class="flex gap-1 relative">
-                        <button
-                            on:click=move |_| set_show_emoji_picker.update(|v| *v = !*v)
-                            class="p-1.5 rounded text-slate-500 hover:text-primary hover:bg-surface-darker transition-colors"
-                            title="絵文字"
-                        >
-                            <span class="material-symbols-outlined text-[18px]">"sentiment_satisfied"</span>
-                        </button>
-
-                        {move || show_emoji_picker.get().then(|| view! {
-                            <div class="absolute bottom-full left-0 mb-2 bg-surface-dark border border-border-dark rounded-lg p-2 shadow-xl grid grid-cols-5 gap-1 z-50">
-                                {emojis.iter().map(|&emoji| {
-                                    let emoji_str = emoji.to_string();
-                                    let emoji_display = emoji.to_string();
-                                    view! {
-                                        <button
-                                            on:click=move |_| {
-                                                set_chat_input.update(|input| {
-                                                    input.push_str(&emoji_str);
-                                                });
-                                                set_show_emoji_picker.set(false);
-                                            }
-                                            class="text-2xl hover:bg-surface-darker p-1 rounded transition-colors"
-                                        >
-                                            {emoji_display}
-                                        </button>
-                                    }
-                                }).collect_view()}
-                            </div>
-                        })}
-                    </div>
-                    <span class="text-[10px] text-slate-600 font-mono">"ENTERで送信"</span>
                 </div>
             </div>
         </aside>

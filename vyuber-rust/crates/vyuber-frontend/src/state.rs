@@ -3,8 +3,8 @@ use std::collections::HashSet;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ChatUser {
-    Me,             // 自分（音声入力）
-    Ai(String),     // AI視聴者（名前付き）
+    Me,            // 自分（音声入力）
+    Ai(String),    // AI視聴者（名前付き）
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -12,10 +12,11 @@ pub struct ChatMessage {
     pub id: usize,
     pub user: ChatUser,
     pub text: String,
+    pub color: String, // ★追加: CSSクラスを保持するフィールド
 }
 
 // アプリ全体で共有するステート（状態）
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct GlobalState {
     pub messages: ReadSignal<Vec<ChatMessage>>,
     pub set_messages: WriteSignal<Vec<ChatMessage>>,
@@ -36,10 +37,16 @@ impl GlobalState {
     }
 
     // メッセージを追加する関数
-    pub fn add_message(&self, user: ChatUser, text: String) {
+    // ★修正: 第3引数に color を追加
+    pub fn add_message(&self, user: ChatUser, text: String, color: String) {
         self.set_messages.update(|msgs| {
             let id = msgs.len();
-            msgs.push(ChatMessage { id, user: user.clone(), text });
+            msgs.push(ChatMessage {
+                id,
+                user: user.clone(),
+                text,
+                color, // ここにバックエンドからのCSSクラスが入る
+            });
         });
 
         // AI視聴者の場合、ユニークカウントに追加
@@ -60,9 +67,17 @@ impl GlobalState {
         let v_idx = (js_sys::Math::random() * viewers.len() as f64) as usize;
         let c_idx = (js_sys::Math::random() * comments.len() as f64) as usize;
 
+        // デモ用なので適当な色を指定
+        let demo_color = if c_idx % 2 == 0 {
+            "text-blue-400 bg-blue-900/20".to_string()
+        } else {
+            "text-green-400 bg-green-900/20".to_string()
+        };
+
         self.add_message(
             ChatUser::Ai(viewers[v_idx].to_string()),
-            comments[c_idx].to_string()
+            comments[c_idx].to_string(),
+            demo_color,
         );
     }
 }

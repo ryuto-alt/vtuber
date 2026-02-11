@@ -73,11 +73,12 @@ impl GroqClient {
         &self, 
         message: &str, 
         last_comments: Option<&[ChatComment]>,
-        active_personas: &[Persona]
+        active_personas: &[Persona],
+        model_id: &str,           // ★追加
+        system_instruction: &str, // ★追加
     ) -> Result<Vec<ChatComment>> {
         tracing::info!("[Chat API] Generating comments for message: {}", message);
 
-        // ★ここがエラーの原因でした！新しい項目に合わせて修正済みです
         let personas_prompt = active_personas.iter().map(|p| {
             format!(
                 "- 名前: {}\n  属性: {} / {} / {}\n  関係: {}\n  興味: {}\n  性格・口調: {}", 
@@ -94,40 +95,24 @@ impl GroqClient {
             "【直前のチャット履歴】\n(なし)".to_string()
         };
 
-        // システムプロンプト
-        let system_prompt = format!(r#"
-あなたはYouTube配信のチャット欄を盛り上げる「視聴者シミュレーター」です。
-今回は、以下の【選抜された視聴者】になりきってコメントを生成してください。
-各視聴者の「年齢」「職業」「関係性」などの背景情報を踏まえ、リアルな発言を心がけてください。
+        let final_system_prompt = format!(r#"
+{system_instruction}
 
-【今回の選抜視聴者リスト（詳細プロフィール）】
+【今回の演者リスト】
 {personas_prompt}
 
-【生成ルール】
-1. 出力は必ずJSON形式 (comments配列) にすること。
-2. 上記リストにいる全員分のコメントを1つずつ生成すること。
-3. "user" はリストの名前をそのまま使うこと。
-4. "text" はそのキャラの性格・口調を完全に再現すること。
-   - 興味のない話題には適当に反応したり、自分の興味のある話題に無理やり繋げてもよい。
-   - アンチや指示厨は、少し棘のある言い方をすること。
-5. "color" はJSONには含めなくてよい。
-6. 文脈を読み、配信者の発言に対して自然な反応をすること。
-
-【出力例】
-{{
-  "comments": [
-    {{ "user": "草野", "text": "噛んだｗｗｗ" }},
-    {{ "user": "博士", "text": "今の現象はラグではなく仕様ですね" }}
-  ]
-}}
-"#);
+【出力ルール】
+1. 必ずJSON形式 `{{ "comments": [ {{ "user": "名前", "text": "発言" }} ... ] }}` で出力すること。
+2. リスト内の演者からランダムに、あるいは全員分生成すること。
+3. "user" はリストの名前を正確に使うこと。
+"#, system_instruction = system_instruction, personas_prompt = personas_prompt);
 
         let user_message = format!("【配信者の発言】\n「{}」\n\n{}", message, context);
 
         let request_body = GroqRequest {
-            model: "llama-3.3-70b-versatile".to_string(),
+            model: model_id.to_string(),
             messages: vec![
-                Message { role: "system".to_string(), content: system_prompt },
+                Message { role: "system".to_string(), content: final_system_prompt },
                 Message { role: "user".to_string(), content: user_message },
             ],
             response_format: ResponseFormat { format_type: "json_object".to_string() },
@@ -162,18 +147,25 @@ impl GroqClient {
         let wrapper: CommentsWrapper = serde_json::from_str(content_json_str)
             .map_err(|e| anyhow::anyhow!("Failed to parse content JSON: {}", e))?;
 
-        // 色情報の復元
         let mut final_comments = Vec::new();
         for raw in wrapper.comments {
-            let color = active_personas.iter()
-                .find(|p| p.name == raw.user)
-                .map(|p| p.color.clone())
-                .unwrap_or_else(|| "text-slate-400".to_string());
+            let persona = active_personas.iter().find(|p| p.name == raw.user);
+            
+            // ★修正: シンプルな色クラスのみを返す
+            let color_class = if let Some(p) = persona {
+                if p.is_anchor {
+                    p.color.clone() // 70B: ペルソナ定義色
+                } else {
+                    "text-emerald-500".to_string() // 8B: 緑
+                }
+            } else {
+                "text-slate-400".to_string()
+            };
 
             final_comments.push(ChatComment {
                 user: raw.user,
                 text: raw.text,
-                color,
+                color: color_class, 
             });
         }
 

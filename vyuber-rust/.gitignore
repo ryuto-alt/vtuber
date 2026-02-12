@@ -23,3 +23,10 @@ Thumbs.db
 
 # Build artifacts
 /static/
+
+# MediaMTX (auto-downloaded by run.bat)
+mediamtx/mediamtx.exe
+mediamtx/mediamtx
+mediamtx/LICENSE
+mediamtx/mediamtx.yml
+logs/

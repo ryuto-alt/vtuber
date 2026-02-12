@@ -1,0 +1,28 @@
+2026-02-01T16:16:12.004116Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-01T16:16:12.008857Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-01T16:16:12.008947Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-01T16:16:12.009096Z ERROR vyuber_backend: Failed to start MediaMTX: MediaMTX executable not found: mediamtx/mediamtx.exe
+2026-02-01T16:16:12.009168Z  WARN vyuber_backend: Continuing without MediaMTX — manual startup required
+2026-02-01T16:16:12.009236Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-01T16:16:12.009482Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-01T16:16:12.009552Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-01T16:16:12.009615Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-01T16:35:05.754761Z  INFO vyuber_backend::api::stream_key: Generated new stream key: bcde7dfa749043018cccbcbef912aba1
+2026-02-01T16:35:05.754876Z  INFO vyuber_backend::streaming::state: Active stream key set: bcde7dfa749043018cccbcbef912aba1
+2026-02-01T16:37:30.834145Z  INFO vyuber_backend::api::stream_key: Generated new stream key: 210698e71d5a413eb14a65f6fe4dfe50
+2026-02-01T16:37:30.834232Z  INFO vyuber_backend::streaming::state: Active stream key set: 210698e71d5a413eb14a65f6fe4dfe50
+2026-02-01T16:37:53.367708Z  INFO vyuber_backend::api::stream_key: Generated new stream key: 987ac25333c54881a44d8be124ac9a56
+2026-02-01T16:37:53.367782Z  INFO vyuber_backend::streaming::state: Active stream key set: 987ac25333c54881a44d8be124ac9a56
+2026-02-01T16:37:56.594191Z  INFO vyuber_backend::api::stream_key: Generated new stream key: 56bd9897e31f4cdcbbd231000497734e
+2026-02-01T16:37:56.594420Z  INFO vyuber_backend::streaming::state: Active stream key set: 56bd9897e31f4cdcbbd231000497734e
+2026-02-01T16:49:47.287188Z  INFO vyuber_backend: Starting VYuber Rust Backend...
+2026-02-01T16:49:47.287606Z  INFO vyuber_backend::mediamtx: [MediaMTX] exe: mediamtx/mediamtx.exe
+2026-02-01T16:49:47.287692Z  INFO vyuber_backend::mediamtx: [MediaMTX] config: mediamtx/vyuber-mediamtx.yml
+2026-02-01T16:49:47.287854Z ERROR vyuber_backend: Failed to start MediaMTX: MediaMTX executable not found: mediamtx/mediamtx.exe
+2026-02-01T16:49:47.287930Z  WARN vyuber_backend: Continuing without MediaMTX — manual startup required
+2026-02-01T16:49:47.287988Z  INFO vyuber_backend: Serving static files from: crates/vyuber-backend/static
+2026-02-01T16:49:47.288148Z  INFO vyuber_backend: Axum server listening on 127.0.0.1:3000
+2026-02-01T16:49:47.288209Z  INFO vyuber_backend: MediaMTX WebRTC: http://localhost:8889/
+2026-02-01T16:49:47.288262Z  INFO vyuber_backend: MediaMTX RTMP: rtmp://localhost:1935/live/{stream_key}
+2026-02-01T17:03:19.422035Z  INFO vyuber_backend::api::stream_key: Generated new stream key: 981d023d23d1488dad30f2b15b0a61a5
+2026-02-01T17:03:19.422131Z  INFO vyuber_backend::streaming::state: Active stream key set: 981d023d23d1488dad30f2b15b0a61a5

@@ -3,22 +3,35 @@ name = "vyuber-backend"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "vyuber_backend"
+path = "src/lib.rs"
+
 [[bin]]
 name = "vyuber-backend"
 path = "src/main.rs"
 
 [dependencies]
 # Web Framework
-axum = "0.7"
+axum = { version = "0.7", features = ["multipart", "ws"] }
 tower-http = { version = "0.5", features = ["fs", "cors"] }
 tokio = { workspace = true }
 
-# RTMP (placeholder for MVP - sheave not available on crates.io)
-# Full RTMP implementation will be added in production
-tokio-util = { version = "0.7", features = ["io"] }
-bytes = "1.5"
+# WebSocket & Async Utilities
+futures = "0.3"
 
-# HTTP Client (Gemini API)
+# Whisper (ローカル音声認識)
+# GPU加速有効化: NVIDIA GPU (GTX 1060以上) で10-30倍高速化
+# CUDA Toolkit 11.x/12.x が必要（https://developer.nvidia.com/cuda-downloads）
+whisper-rs = { version = "0.15", features = ["cuda"] }
+
+# RTMP (placeholder)
+tokio-util = { version = "0.7", features = ["io"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+bytes = "1.5"
+futures-util = "0.3"
+
+# HTTP Client
 reqwest = { version = "0.12", features = ["json"] }
 
 # Serialization
@@ -36,6 +49,11 @@ thiserror = { workspace = true }
 # Logging
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+
+# 形態素解析 (日本語テキスト補完)
+lindera = { version = "2", features = ["embed-ipadic"] }
+strsim = "0.11"
 
 # Shared Types
 vyuber-shared = { workspace = true }

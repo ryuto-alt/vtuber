@@ -123,10 +123,8 @@ impl GeminiClient {
         let gemini_response: GeminiResponse = response.json().await?;
 
         let response_text = &gemini_response.candidates[0].content.parts[0].text;
-        tracing::info!(
-            "[Chat API] Received response: {}",
-            &response_text[..response_text.len().min(100)]
-        );
+        let preview: String = response_text.chars().take(100).collect();
+        tracing::info!("[Chat API] Received response: {}", preview);
 
         // JSONとしてパース
         let comments: Vec<ChatComment> = serde_json::from_str(response_text)?;

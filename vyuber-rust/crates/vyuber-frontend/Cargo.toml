@@ -19,13 +19,42 @@ js-sys = "0.3"
 web-sys = { version = "0.3", features = [
     "Window",
     "Document",
+    "Navigator",
+    "Location",
+    "MediaDevices",
     "HtmlVideoElement",
     "SpeechRecognition",
-    "SpeechRecognitionEvent",
-    "SpeechRecognitionResult",
-    "SpeechRecognitionResultList",
-    "SpeechRecognitionAlternative",
-    "MediaSource",
+    "MediaStream",
+    "MediaStreamConstraints",
+    "MediaStreamTrack",      # ★追加
+    "DomException",          # ★追加
+    "MediaRecorder",
+    "MediaRecorderOptions",
+    "RecordingState",
+    "AudioContext",
+    "BaseAudioContext",
+    "AudioNode",
+    "AudioBuffer",
+    "AudioProcessingEvent",
+    "ScriptProcessorNode",
+    "MediaStreamAudioSourceNode",
+    "AudioDestinationNode",
+    "GainNode",
+    "AudioParam",
+    "Blob",
+    "BlobEvent",
+    "BlobPropertyBag",
+    "FileReader",
+    "FormData",
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "WebSocket",
+    "MessageEvent",
+    "BinaryType",
+    "console",
 ] }
 
 # HTTP Client
@@ -43,6 +72,8 @@ log = "0.4"
 console_log = "1.0"
 rand = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
+chrono = { version = "0.4", features = ["wasmbind"] }
+uuid = { version = "1.0", features = ["v4", "js"] }
 
 # Shared Types
 vyuber-shared = { workspace = true }

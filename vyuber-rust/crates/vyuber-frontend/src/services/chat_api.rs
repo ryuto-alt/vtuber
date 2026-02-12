@@ -1,23 +1,20 @@
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
-use vyuber_shared::chat::ChatComment;
-
-#[derive(Serialize)]
-struct ChatRequest {
-    message: String,
-}
+use vyuber_shared::chat::{ChatComment, ChatRequest, ChatMode};
 
 #[derive(Deserialize)]
 struct ChatResponse {
     comments: Vec<ChatComment>,
 }
 
-pub async fn send_message(message: &str) -> Result<Vec<ChatComment>, String> {
+// mode引数を追加
+pub async fn send_message(message: &str, mode: ChatMode) -> Result<Vec<ChatComment>, String> {
     let request_body = ChatRequest {
         message: message.to_string(),
+        mode,
     };
 
-    let response = Request::post("/api/chat")
+    let response = Request::post("http://127.0.0.1:3000/api/chat")
         .json(&request_body)
         .map_err(|e| format!("Failed to serialize request: {}", e))?
         .send()

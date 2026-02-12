@@ -1,61 +1,49 @@
 use anyhow::Result;
-use std::net::SocketAddr;
-use tokio::net::TcpListener;
-use tokio::io::AsyncReadExt;
-use tracing::{info, error};
+use tracing::{info, warn};
 
-/// RTMPサーバーを起動
-///
-/// MVP版: プレースホルダー実装
-/// 実際のRTMP実装にはsheave等のライブラリが必要
-pub async fn start_rtmp_server() -> Result<()> {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 1935));
+use crate::streaming::StreamManager;
 
-    info!("RTMP server (placeholder) will listen on {}", addr);
-    info!("Full RTMP implementation pending - sheave integration required");
+const STREAM_ID: &str = "_rtmp_default";
 
-    // バックグラウンドでリスナーを起動
+pub async fn start_rtmp_server(stream_manager: StreamManager) -> Result<()> {
+    let sm = stream_manager.clone();
+
     tokio::spawn(async move {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                info!("RTMP placeholder server listening on {}", addr);
+        loop {
+            // ストリームキーが設定されるまで待つ
+            let _key = loop {
+                if let Some(key) = sm.get_active_key().await {
+                    break key;
+                }
+                info!("Waiting for stream key to be generated...");
+                sm.wait_for_key_change().await;
+            };
 
-                loop {
-                    match listener.accept().await {
-                        Ok((mut socket, peer_addr)) => {
-                            info!("New RTMP connection from: {}", peer_addr);
+            let rtmp_port = sm.get_rtmp_port().await;
+            info!("Starting Native RTMP listener on port {}", rtmp_port);
 
-                            tokio::spawn(async move {
-                                let mut buf = vec![0; 1024];
+            // ストリーム登録
+            let sender = sm.register_stream(STREAM_ID).await;
 
-                                // データを受信してログに記録
-                                loop {
-                                    match socket.read(&mut buf).await {
-                                        Ok(0) => {
-                                            info!("RTMP connection closed: {}", peer_addr);
-                                            break;
-                                        }
-                                        Ok(n) => {
-                                            info!("Received {} bytes from RTMP client", n);
-                                            // MVP: データは処理せず、ログのみ
-                                        }
-                                        Err(e) => {
-                                            error!("RTMP read error: {}", e);
-                                            break;
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                        Err(e) => {
-                            error!("Failed to accept RTMP connection: {}", e);
-                        }
-                    }
+            match super::native::run_native_rtmp(
+                rtmp_port,
+                sender,
+                sm.clone(),
+                STREAM_ID.to_string(),
+            ).await {
+                Ok(()) => {
+                    info!("RTMP session ended normally");
+                }
+                Err(e) => {
+                    warn!("RTMP session error: {}", e);
                 }
             }
-            Err(e) => {
-                error!("Failed to bind RTMP server: {}", e);
-            }
+
+            // ストリームデータリセット
+            sm.remove_stream(STREAM_ID).await;
+            // ポート解放を待つ（Windowsでは時間がかかる場合がある）
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            info!("Restarting RTMP listener...");
         }
     });
 

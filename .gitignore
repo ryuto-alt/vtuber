@@ -23,6 +23,10 @@ Thumbs.db
 # Media files (generated at runtime)
 media/
 
+
+# Claude Code
+.claude/
+
 # MCP and Serena config (contains secrets)
 .mcp.json
 .serena/
